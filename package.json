@@ -1,0 +1,12 @@
+{
+  "name": "bach-tools",
+  "private": true,
+  "type": "module",
+  "description": "Asset scripts for Bach. Bach itself is Rust; this only exports icons and the brand mark.",
+  "scripts": {
+    "icons": "bun scripts/export-icons.mjs"
+  },
+  "devDependencies": {
+    "@tabler/icons-react": "^3.44.0"
+  }
+}

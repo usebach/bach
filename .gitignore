@@ -1,0 +1,7 @@
+/target
+/target-*
+/node_modules
+/dist
+/.claude/worktrees
+# The example's app folder is filled by scripts/build-example.ps1.
+/examples/hello/app

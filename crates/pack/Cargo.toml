@@ -1,0 +1,14 @@
+[package]
+name = "bach-pack"
+description = "The bach.toml config, the payload format and the path rules shared by the Bach builder and the setup runtime."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml = "0.8"
+zstd = { version = "0.13", features = ["zstdmt"] }

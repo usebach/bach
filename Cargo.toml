@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = ["crates/pack", "crates/cli", "crates/setup", "examples/hello"]
+default-members = ["crates/pack", "crates/cli", "crates/setup"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "GPL-3.0-only"
+repository = "https://github.com/usebach/bach"
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.dev]
+# GPUI is heavy; optimise dependencies even in debug so the window stays smooth.
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

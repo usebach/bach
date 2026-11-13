@@ -1,0 +1,25 @@
+# The example installer. Build it from the repository root:
+#
+#   cargo build --release
+#   copy target\release\hello.exe examples\hello\app\
+#   target\release\bach.exe build examples\hello\bach.toml
+#
+# or run scripts\build-example.ps1, which does all three.
+
+[app]
+name = "Hello"
+version = "1.0.0"
+publisher = "Bach"
+description = "A tiny app that says hello."
+executable = "hello.exe"
+website = "https://github.com/usebach/bach"
+
+[files]
+source = "app"
+
+[installer]
+output = "../../dist/Hello-Setup-{version}.exe"
+
+[uninstall]
+data = ['%APPDATA%\Hello']
+data_description = "Hello's settings."

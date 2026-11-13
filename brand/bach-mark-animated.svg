@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="-160 -160 320 320" fill="currentColor">
+  <title>Bach</title>
+  <style>
+    /* Twelve petals, lengths after the B-A-C-H motif. Each one flips across its own
+       axis on a 2.4 s cycle (squash flat, reopen mirrored, grow 20% and drift
+       outward, flip back, rest), cascading 40 ms apart clockwise from the top. */
+    .p { transform-box: fill-box; transform-origin: center;
+         animation: flip 2.4s cubic-bezier(.55,0,.3,1) infinite; }
+    @keyframes flip {
+      0%   { transform: translate(0, 0) scale(1, 1); }
+      32%  { transform: translate(9px, 0) scale(1.2, -1); }
+      62%  { transform: translate(0, 0) scale(1, 1); }
+      100% { transform: translate(0, 0) scale(1, 1); }
+    }
+    @media (prefers-reduced-motion: reduce) { .p { animation: none; } }
+  </style>
+  <g transform="rotate(-150)"><path class="p" style="animation-delay:0.40s" d="M34.462 7.851L84.538 17.664A18 18 0 1 0 84.538 -17.664L34.462 -7.851A8 8 0 0 0 34.462 7.851Z"/></g>
+  <g transform="rotate(-120)"><path class="p" style="animation-delay:0.44s" d="M33.778 7.685L67 17.292A18 18 0 1 0 67 -17.292L33.778 -7.685A8 8 0 0 0 33.778 7.685Z"/></g>
+  <g transform="rotate(-90)"><path class="p" style="animation-delay:0.00s" d="M35.048 7.943L117.857 17.872A18 18 0 1 0 117.857 -17.872L35.048 -7.943A8 8 0 0 0 35.048 7.943Z"/></g>
+  <g transform="rotate(-60)"><path class="p" style="animation-delay:0.04s" d="M34.824 7.913L101.353 17.804A18 18 0 1 0 101.353 -17.804L34.824 -7.913A8 8 0 0 0 34.824 7.913Z"/></g>
+  <g transform="rotate(-30)"><path class="p" style="animation-delay:0.08s" d="M34.462 7.851L84.538 17.664A18 18 0 1 0 84.538 -17.664L34.462 -7.851A8 8 0 0 0 34.462 7.851Z"/></g>
+  <g transform="rotate(0)"><path class="p" style="animation-delay:0.12s" d="M33.778 7.685L67 17.292A18 18 0 1 0 67 -17.292L33.778 -7.685A8 8 0 0 0 33.778 7.685Z"/></g>
+  <g transform="rotate(30)"><path class="p" style="animation-delay:0.16s" d="M35.048 7.943L117.857 17.872A18 18 0 1 0 117.857 -17.872L35.048 -7.943A8 8 0 0 0 35.048 7.943Z"/></g>
+  <g transform="rotate(60)"><path class="p" style="animation-delay:0.20s" d="M34.824 7.913L101.353 17.804A18 18 0 1 0 101.353 -17.804L34.824 -7.913A8 8 0 0 0 34.824 7.913Z"/></g>
+  <g transform="rotate(90)"><path class="p" style="animation-delay:0.24s" d="M34.462 7.851L84.538 17.664A18 18 0 1 0 84.538 -17.664L34.462 -7.851A8 8 0 0 0 34.462 7.851Z"/></g>
+  <g transform="rotate(120)"><path class="p" style="animation-delay:0.28s" d="M33.778 7.685L67 17.292A18 18 0 1 0 67 -17.292L33.778 -7.685A8 8 0 0 0 33.778 7.685Z"/></g>
+  <g transform="rotate(150)"><path class="p" style="animation-delay:0.32s" d="M35.048 7.943L117.857 17.872A18 18 0 1 0 117.857 -17.872L35.048 -7.943A8 8 0 0 0 35.048 7.943Z"/></g>
+  <g transform="rotate(180)"><path class="p" style="animation-delay:0.36s" d="M34.824 7.913L101.353 17.804A18 18 0 1 0 101.353 -17.804L34.824 -7.913A8 8 0 0 0 34.824 7.913Z"/></g>
+</svg>

@@ -1,0 +1,179 @@
+# Releases Bach (the bach builder and the bach-setup runtime), but only
+# when you say so.
+#
+# Start it on GitHub (Actions › Release › Run workflow) or from a terminal:
+#
+#   gh workflow run release.yml -f bump=minor
+#   gh workflow run release.yml -f version=1.0.0
+#   gh workflow run release.yml -f bump=minor -f prerelease=true
+#   gh workflow run release.yml -f bump=patch -f dry_run=true
+#
+# It raises the version, writes CHANGELOG.md from the commits since the last
+# release, runs the tests and clippy, builds bach-X.Y.Z-windows-x64.zip and
+# the example installer, commits "Release vX.Y.Z" to main with a tag, and
+# publishes a GitHub release with both and their SHA-256. A dry run does
+# everything up to the commit and keeps the files as a workflow artifact.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Which part of the version goes up
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: Or an exact version, like 1.0.0 (overrides the bump)
+        type: string
+        required: false
+      prerelease:
+        description: Mark it as a pre-release (not shown as the latest version)
+        type: boolean
+        default: false
+      draft:
+        description: Save the release as a draft instead of publishing it
+        type: boolean
+        default: false
+      dry_run:
+        description: Build and write the notes, but don't commit, tag or release
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# One release at a time; a second one waits for the first.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release
+    # Only from main, and only when leifiyoo started it (also on a re-run,
+    # which GitHub credits to whoever clicked it). Anyone else's run is
+    # skipped before a single step runs. Writers could edit this line on a
+    # branch, so the repository's rulesets keep main and the v* tags safe too.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.actor == 'leifiyoo' &&
+      github.triggering_actor == 'leifiyoo'
+    runs-on: windows-latest
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out main with its history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # The build runs dependencies' build scripts, so the write token
+          # isn't left in .git/config for them; only the push step gets it.
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          components: clippy
+
+      - name: Reuse earlier build output
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Pick the version
+        id: version
+        shell: pwsh
+        env:
+          BUMP: ${{ inputs.bump }}
+          EXACT: ${{ inputs.version }}
+        run: |
+          $target = if ($env:EXACT) { $env:EXACT } else { $env:BUMP }
+          $version = bun scripts/bump-version.mjs $target
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (git tag --list "v$version") { throw "v$version is already released." }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing Bach $version"
+
+      - name: Write the changelog
+        shell: pwsh
+        run: |
+          bun scripts/release-notes.mjs --version ${{ steps.version.outputs.version }} --write
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build the download and the example installer
+        shell: pwsh
+        run: |
+          ./scripts/build-release.ps1
+          ./scripts/build-example.ps1
+          $zip = "dist/bach-${{ steps.version.outputs.version }}-windows-x64.zip"
+          if (-not (Test-Path $zip)) { throw "The zip wasn't built." }
+          $example = "dist/Hello-Setup-1.0.0.exe"
+          if (-not (Test-Path $example)) { throw "The example installer wasn't built." }
+          foreach ($file in @($zip, $example)) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
+            "$hash  $(Split-Path -Leaf $file)" | Set-Content -NoNewline "$file.sha256"
+          }
+
+      - name: Keep the dry run's files
+        if: inputs.dry_run
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bach-${{ steps.version.outputs.version }}-dry-run
+          path: |
+            dist/*.zip
+            dist/*.exe
+            dist/*.sha256
+            dist/release-notes.md
+            CHANGELOG.md
+
+      - name: Commit and tag the release
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git commit -m "Release v$version"
+          if ($LASTEXITCODE -ne 0) { throw "Couldn't commit the release." }
+          git tag -a "v$version" -m "Bach $version"
+          # The token goes in a one-off header, never into .git/config or a URL.
+          $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$env:GH_TOKEN"))
+          # Keep the branch and tag in sync: a partial push would leave a
+          # release tag pointing at a commit that never reached main.
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --atomic origin HEAD:main "v$version"
+          if ($LASTEXITCODE -ne 0) { throw "Couldn't push the release commit. Did main move while this ran?" }
+
+      - name: Publish the GitHub release
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRAFT: ${{ inputs.draft }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $flags = @()
+          if ($env:DRAFT -eq 'true') { $flags += '--draft' }
+          if ($env:PRERELEASE -eq 'true') { $flags += '--prerelease' }
+          gh release create "v$version" `
+            "dist/bach-$version-windows-x64.zip" `
+            "dist/bach-$version-windows-x64.zip.sha256" `
+            "dist/Hello-Setup-1.0.0.exe" `
+            "dist/Hello-Setup-1.0.0.exe.sha256" `
+            --title "Bach $version" `
+            --notes-file dist/release-notes.md `
+            @flags
+          if ($LASTEXITCODE -ne 0) { exit 1 }

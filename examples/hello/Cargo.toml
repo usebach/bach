@@ -1,0 +1,14 @@
+[package]
+name = "hello"
+description = "A tiny Windows app to package with Bach, for trying the builder end to end."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "hello"
+path = "src/main.rs"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }

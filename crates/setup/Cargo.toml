@@ -1,0 +1,36 @@
+[package]
+name = "bach-setup"
+description = "The setup runtime: the installer and uninstaller window every Bach setup file runs."
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "bach-setup"
+path = "src/main.rs"
+
+[dependencies]
+bach-pack = { path = "../pack" }
+anyhow.workspace = true
+
+# The runtime is a Windows program; elsewhere it builds to a stub that says so,
+# so `cargo test --workspace` still works on every OS.
+[target.'cfg(windows)'.dependencies]
+gpui = "0.2.2"
+futures = "0.3"
+rfd = "0.15"
+raw-window-handle = "0.6"
+# debug-embed: always embed the fonts and icons, so a debug build is as
+# self-contained as a release.
+rust-embed = { version = "8", features = ["debug-embed"] }
+# A subset of the features GPUI already builds, so they add no compile time.
+windows = { version = "0.61", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+] }
+windows-registry = "0.5"
+
+[target.'cfg(windows)'.build-dependencies]
+embed-resource = "3"
