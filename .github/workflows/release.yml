@@ -9,10 +9,13 @@
 #   gh workflow run release.yml -f bump=patch -f dry_run=true
 #
 # It raises the version, writes CHANGELOG.md from the commits since the last
-# release, runs the tests and clippy, builds bach-X.Y.Z-windows-x64.zip and
-# the example installer, commits "Release vX.Y.Z" to main with a tag, and
-# publishes a GitHub release with both and their SHA-256. A dry run does
-# everything up to the commit and keeps the files as a workflow artifact.
+# release, runs the tests and clippy, builds bach-X.Y.Z-windows-x64.zip, the
+# bare bach-setup.exe (which `bach` downloads when it runs without one, on
+# macOS and Linux CI for example) and the example installer, commits
+# "Release vX.Y.Z" to main with a tag, and publishes a GitHub release with
+# all of them and their SHA-256. A second job then adds `bach` for macOS and
+# Linux to the same release. A dry run does everything up to the commit and
+# keeps the files as a workflow artifact.
 
 name: Release
 
@@ -62,6 +65,8 @@ jobs:
       github.triggering_actor == 'leifiyoo'
     runs-on: windows-latest
     timeout-minutes: 120
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       CARGO_TERM_COLOR: always
     steps:
@@ -119,7 +124,9 @@ jobs:
           if (-not (Test-Path $zip)) { throw "The zip wasn't built." }
           $example = "dist/Hello-Setup-1.0.0.exe"
           if (-not (Test-Path $example)) { throw "The example installer wasn't built." }
-          foreach ($file in @($zip, $example)) {
+          $runtime = "dist/bach-setup.exe"
+          Copy-Item target/release/bach-setup.exe $runtime
+          foreach ($file in @($zip, $example, $runtime)) {
             $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
             "$hash  $(Split-Path -Leaf $file)" | Set-Content -NoNewline "$file.sha256"
           }
@@ -171,9 +178,68 @@ jobs:
           gh release create "v$version" `
             "dist/bach-$version-windows-x64.zip" `
             "dist/bach-$version-windows-x64.zip.sha256" `
+            "dist/bach-setup.exe" `
+            "dist/bach-setup.exe.sha256" `
             "dist/Hello-Setup-1.0.0.exe" `
             "dist/Hello-Setup-1.0.0.exe.sha256" `
             --title "Bach $version" `
             --notes-file dist/release-notes.md `
             @flags
           if ($LASTEXITCODE -ne 0) { exit 1 }
+
+  # `bach` itself runs anywhere; these builds let macOS and Linux (and their
+  # CI) use it without Rust. Built from the release tag, then added to the
+  # release the job above published.
+  cli:
+    name: bach for ${{ matrix.name }}
+    needs: release
+    if: ${{ !inputs.dry_run }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: linux-arm64
+            os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+          - name: macos-arm64
+            os: macos-latest
+            target: aarch64-apple-darwin
+          - name: macos-x64
+            os: macos-latest
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build and pack bach
+        shell: bash
+        run: |
+          cargo build --release -p bach-cli --target ${{ matrix.target }}
+          name="bach-${{ needs.release.outputs.version }}-${{ matrix.name }}"
+          mkdir -p "dist/$name"
+          cp "target/${{ matrix.target }}/release/bach" LICENSE "dist/$name/"
+          tar -czf "dist/$name.tar.gz" -C dist "$name"
+          (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+
+      - name: Add it to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          name="bach-${{ needs.release.outputs.version }}-${{ matrix.name }}"
+          gh release upload "v${{ needs.release.outputs.version }}" "dist/$name.tar.gz" "dist/$name.tar.gz.sha256" --repo "${{ github.repository }}"
