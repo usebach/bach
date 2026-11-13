@@ -5,15 +5,26 @@ share. It takes about five minutes.
 
 ## 1. Get Bach
 
-Download `bach-<version>-windows-x64.zip` from the
-[releases page](https://github.com/usebach/bach/releases) and unzip it
-somewhere permanent, for example `C:\Tools\Bach`. You get two files:
+You don't need Rust. In PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
+```
+
+It puts two files in `%LOCALAPPDATA%\Programs\Bach` and adds that folder to
+your `PATH`:
 
 - `bach.exe`, the command you run.
 - `bach-setup.exe`, the installer window every setup file is built from.
 
-Keep them in the same folder. Optionally add that folder to your `PATH`, so
-`bach` works from any terminal.
+Prefer doing it by hand? Download `bach-<version>-windows-x64.zip` from the
+[releases page](https://github.com/usebach/bach/releases), unzip it
+somewhere permanent and keep the two files together. On macOS or Linux (for
+CI), run
+`curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh`;
+`bach` downloads `bach-setup.exe` itself the first time it builds.
+
+Run `bach doctor` to see that everything is in place.
 
 ## 2. Build your app into a folder
 
@@ -63,17 +74,28 @@ sentence what's wrong, naming the setting at fault.
 
 ```toml
 [app]
-icon = "assets/app.ico"    # the setup file's icon in Explorer and the taskbar
+description = "Your notes, everywhere."  # the line under the heading
+icon = "assets/app.ico"    # the setup file's icon, and the logo if it has a PNG inside
 
 [installer]
-logo = "assets/logo.svg"   # shown at the top of the window
+logo = "assets/logo.svg"   # or a .png, or "none"
 accent = "#2563eb"         # buttons, the progress bar, ticked boxes
 theme = "system"           # or "light" / "dark"
+languages = ["en", "de"]   # leave out to speak all 13, following Windows
+license = "LICENSE.txt"    # an accept page before installing
+start_with_windows = false # offered, unticked
+add_to_path = "always"     # for command-line tools
+
+[text]
+footer = "Made with care by {publisher}"
 
 [uninstall]
 data = ['%APPDATA%\My App']
 data_description = "Your settings and saved projects."
 ```
+
+Optional parts, link schemes, file types and every text in the window are
+in the [config reference](config.md).
 
 See it without installing anything:
 
@@ -82,7 +104,7 @@ bach preview
 ```
 
 ```bash
-bach preview --uninstall --theme dark
+bach preview --uninstall --theme dark --lang de
 ```
 
 ## 5. Build
@@ -99,7 +121,8 @@ The setup file lands in `dist\My App-Setup-1.0.0.exe` (change it with
 
 Raise `version` in `bach.toml`, rebuild, and hand out the new setup file.
 Running it over an install updates it in place: it keeps the folder and the
-desktop shortcut choice, and removes files the new version no longer ships.
+user's choices, and removes files the new version no longer ships. If
+anything goes wrong midway, the earlier version stays exactly as it was.
 Keep `[app] id` (it defaults to the name) the same across versions; it's
 how Bach recognises the install.
 
@@ -111,4 +134,6 @@ how Bach recognises the install.
   "Try again" instead of replacing files in use.
 - **Leave out build leftovers** with `[files] exclude = ["*.pdb", "*.log"]`.
 - **CI.** `bach build` exits with a non-zero code and a readable message on
-  any problem, so it fits in a pipeline as is.
+  any problem, so it fits in a pipeline as is, on Windows, macOS or Linux.
+- **IT departments.** Every setup file installs without a window with
+  `--silent` (or `/S`); see [silent installs](config.md#silent-installs).

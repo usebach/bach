@@ -50,20 +50,30 @@ Bach desktop app). Keep it: Inter, the token colours in
 ## Layout
 
 ```
-crates/pack     bach-pack: bach.toml (config.rs), manifest.rs, archive.rs,
-                container.rs (the payload on the exe), paths.rs (safety rules)
-crates/cli      bach-cli, binary `bach`: commands, output, Windows resources
+crates/pack     bach-pack: bach.toml (config/), manifest (manifest.rs and
+                manifest/: choices, components, validation), i18n/ (every
+                window text in 13 languages), archive.rs, container.rs (the
+                payload on the exe), paths.rs (safety rules)
+crates/cli      bach-cli, binary `bach`: commands, runtime lookup and
+                download, doctor, output, Windows resources
 crates/setup    bach-setup: the installer window
-  src/launch.rs   what this run is (install, remove, preview)
+  src/launch.rs   what this run is (install, remove, preview, silent)
+  src/silent.rs   --silent: the same jobs without a window
   src/package.rs  the payload read from its own file
-  src/view.rs     window state; pages.rs draws it
-  src/work/       install, remove and preview jobs on a worker thread
-  src/system.rs   shortcuts, Settings › Apps, known folders
+  src/start.rs    fresh install or update, and the choices to start from
+  src/texts.rs    built-in texts + the developer's [text], filled in
+  src/view.rs     window state; pages/ draws it
+  src/work/       install (place.rs: all-or-nothing swap), remove, preview
+  src/system/     shortcuts, Settings › Apps, known folders; host.rs
+                  (languages, free space, lock), env_path.rs (PATH),
+                  integration.rs (autostart, link schemes, file types)
   src/ui/         UI primitives (buttons, rows, checkbox, motion, …)
   assets/         Inter, Tabler icons, the Bach mark's petals
 examples/hello  a tiny app and the bach.toml that packages it
+skills/bach     SKILL.md: how agents install and use Bach (skills.sh)
 docs/           getting started, config reference, how it works, signing
 scripts/        build-release.ps1, build-example.ps1, release and asset scripts
+install.ps1/.sh one-line installs of bach without Rust
 ```
 
 ## Commands
@@ -71,7 +81,8 @@ scripts/        build-release.ps1, build-example.ps1, release and asset scripts
 ```bash
 cargo build --release                         # bach.exe and bach-setup.exe
 cargo run -p bach-setup -- --preview          # the window, nothing installed
-cargo run -p bach-setup -- --preview --uninstall --theme dark
+cargo run -p bach-setup -- --preview --uninstall --theme dark --lang de
+cargo run -p bach-cli -- doctor examples/hello/bach.toml
 cargo test --workspace
 cargo clippy --workspace --all-targets        # must be warning-free
 powershell -ExecutionPolicy Bypass -File scripts\build-example.ps1   # dist\Hello-Setup-1.0.0.exe
@@ -140,6 +151,12 @@ bottom. Pages rise in as they replace each other; nothing jumps.
   accent replaces only `primary` (and its hover and ink).
 - Copy uses sentence case, names the app ("Install Hello"), and says what
   will happen. Errors are human sentences with a way forward.
+- Every text the window shows is a `bach_pack::i18n::Key` with a
+  translation in every language under `crates/pack/src/i18n`; never write a
+  user-facing literal in `crates/setup`. Adding a key means adding it to
+  every language (the build fails otherwise) and to docs/config.md.
+- Rows of choices are whole click targets (`Row::on_click`); a control
+  inside a row stops propagation so a click never counts twice.
 - Finish every state: ready, working, done, failed, update, reinstall,
   remove, preview, and the "nothing to install" problem page.
 - Test long app names and long install paths; text must wrap, not clip.
