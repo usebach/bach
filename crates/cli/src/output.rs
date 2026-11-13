@@ -23,6 +23,13 @@ pub fn field(label: &str, value: impl std::fmt::Display) {
     println!("  {label:<12} {value}");
 }
 
+/// Prints what builds but probably isn't meant, one line each.
+pub fn warnings(warnings: &[String]) {
+    for warning in warnings {
+        eprintln!("warning: {}", sentence(warning));
+    }
+}
+
 /// Prints an error and its causes, each on its own line.
 pub fn error(err: &anyhow::Error) {
     let mut chain = err.chain();

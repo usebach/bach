@@ -2,7 +2,8 @@
 //!
 //! - [`config`]: `bach.toml`, read and checked, with the files it names.
 //! - [`manifest`]: the description of an app that travels inside a setup
-//!   file (name, version, files, look).
+//!   file (name, version, files, options, look, texts).
+//! - [`i18n`]: every text the setup window shows, in every language.
 //! - [`archive`]: the compressed stream of files.
 //! - [`container`]: how the archive, the logo and the manifest are appended
 //!   to the setup runtime's executable, and found again.
@@ -14,6 +15,7 @@
 pub mod archive;
 pub mod config;
 pub mod container;
+pub mod i18n;
 pub mod manifest;
 pub mod paths;
 

@@ -5,6 +5,14 @@
 //!
 //! These calls block; setup runs them on its worker thread, apart from the
 //! quick registry read at startup.
+//!
+//! - [`host`]: the user's languages, free space, the one-setup-at-a-time lock.
+//! - [`env_path`]: adding the app to the user's `PATH`, and taking it off.
+//! - [`integration`]: starting with Windows, link schemes and file types.
+
+pub mod env_path;
+pub mod host;
+pub mod integration;
 
 use std::path::{Path, PathBuf};
 
@@ -114,8 +122,9 @@ pub fn create_shortcut(link: &Path, target: &Path, description: &str) -> Result<
     Ok(())
 }
 
-/// Lists the app under Settings › Apps, with its uninstaller.
-pub fn register(manifest: &Manifest, dir: &Path) -> Result<()> {
+/// Lists the app under Settings › Apps, with its uninstaller. `size` is
+/// what this install put on disk.
+pub fn register(manifest: &Manifest, dir: &Path, size: u64) -> Result<()> {
     let app = &manifest.app;
     let exe = manifest.executable_in(dir);
     let uninstaller = dir.join(UNINSTALLER);
@@ -126,10 +135,12 @@ pub fn register(manifest: &Manifest, dir: &Path) -> Result<()> {
     key.set_string("DisplayIcon", format!("{},0", exe.display()))?;
     key.set_string("InstallLocation", dir.to_string_lossy())?;
     key.set_string("UninstallString", format!("\"{}\"", uninstaller.display()))?;
+    // What IT tools run to remove it without a window.
+    key.set_string("QuietUninstallString", format!("\"{}\" --silent", uninstaller.display()))?;
     if let Some(website) = &app.website {
         key.set_string("URLInfoAbout", website)?;
     }
-    let size_kb = manifest.total_size() / 1024;
+    let size_kb = size / 1024;
     key.set_u32("EstimatedSize", u32::try_from(size_kb).unwrap_or(u32::MAX))?;
     key.set_u32("NoModify", 1)?;
     key.set_u32("NoRepair", 1)?;
@@ -154,12 +165,12 @@ pub fn notify_shell() {
 }
 
 /// COM for the current thread, released when dropped.
-struct ComThread {
+pub(crate) struct ComThread {
     owned: bool,
 }
 
 impl ComThread {
-    fn enter() -> Self {
+    pub(crate) fn enter() -> Self {
         // Safety: paired with CoUninitialize in Drop when it succeeded.
         let result = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
         Self { owned: result.is_ok() }

@@ -1,0 +1,9 @@
+# Link the C runtime into every Windows binary. Without this, bach.exe,
+# bach-setup.exe and so every setup file built from it need
+# VCRUNTIME140.dll, which a fresh Windows doesn't always have: the
+# installer would fail to start before showing a single pixel.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

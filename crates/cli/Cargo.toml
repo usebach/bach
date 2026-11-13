@@ -15,6 +15,7 @@ bach-pack = { path = "../pack" }
 anyhow.workspace = true
 clap = { version = "4", features = ["derive", "env"] }
 serde_json.workspace = true
+sha2 = "0.10"
 
 # Writing the setup file's icon and version details uses Windows' own
 # resource updater; elsewhere the builder skips that step and says so.

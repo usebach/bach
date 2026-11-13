@@ -20,8 +20,10 @@ pub fn check(config_path: &Path) -> Result<()> {
     summary(&project);
     println!();
     for file in &manifest.files {
-        println!("  {:>10}  {}", output::size(file.size), file.path);
+        let component = file.component.as_deref().map(|id| format!("  ({id})")).unwrap_or_default();
+        println!("  {:>10}  {}{component}", output::size(file.size), file.path);
     }
+    output::warnings(&project.warnings);
     Ok(())
 }
 
@@ -36,6 +38,8 @@ pub fn build(config_path: &Path, out: Option<&Path>, runtime: Option<&Path>, fas
     let app = &project.manifest.app;
     println!("Building {} {}", app.name, app.version);
     summary(&project);
+
+    output::warnings(&project.warnings);
 
     let output = tidy(&output);
     let packed = write_setup(&project, &runtime, &output)?;
@@ -57,7 +61,15 @@ pub fn build(config_path: &Path, out: Option<&Path>, runtime: Option<&Path>, fas
     Ok(output)
 }
 
-pub fn preview(config_path: &Path, uninstall: bool, theme: Option<&str>, runtime: Option<&Path>) -> Result<()> {
+pub struct PreviewOptions<'a> {
+    pub uninstall: bool,
+    pub theme: Option<&'a str>,
+    pub lang: Option<&'a str>,
+    pub runtime: Option<&'a Path>,
+}
+
+pub fn preview(config_path: &Path, options: PreviewOptions) -> Result<()> {
+    let PreviewOptions { uninstall, theme, lang, runtime } = options;
     let mut project = config::load(config_path)?;
     project.compression = Compression::Fast;
     if let Some(theme) = theme {
@@ -65,10 +77,31 @@ pub fn preview(config_path: &Path, uninstall: bool, theme: Option<&str>, runtime
             bail!("--theme is \"{theme}\"; use system, light or dark");
         }
     }
+    if let Some(lang) = lang {
+        if bach_pack::i18n::language(lang).is_none() {
+            let known: Vec<&str> = bach_pack::i18n::LANGUAGES.iter().map(|language| language.code).collect();
+            bail!("--lang is \"{lang}\"; use one of {}", known.join(", "));
+        }
+    }
+    if !cfg!(windows) {
+        bail!("bach preview opens a Windows window, so it needs Windows; `bach check` works everywhere");
+    }
+    output::warnings(&project.warnings);
     let runtime = runtime::find(runtime)?;
     let dir = std::env::temp_dir().join("bach-preview");
     fs::create_dir_all(&dir)?;
-    let output = dir.join(format!("{}-Setup-preview.exe", project.manifest.app.id.replace(' ', "-")));
+    // Earlier previews go, except the ones still open; each preview gets a
+    // file of its own, so an open window never blocks the next one.
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let _ = fs::remove_file(entry.path());
+        }
+    }
+    let output = dir.join(format!(
+        "{}-Setup-preview-{}.exe",
+        project.manifest.app.id.replace(' ', "-"),
+        std::process::id()
+    ));
     write_setup(&project, &runtime, &output)?;
 
     let mut command = std::process::Command::new(&output);
@@ -79,20 +112,16 @@ pub fn preview(config_path: &Path, uninstall: bool, theme: Option<&str>, runtime
     if let Some(theme) = theme {
         command.args(["--theme", theme]);
     }
+    if let Some(lang) = lang {
+        command.args(["--lang", lang]);
+    }
     command.spawn().with_context(|| format!("couldn't start {}", output.display()))?;
     println!("Opened the {} preview. Nothing is installed or removed.", if uninstall { "uninstaller" } else { "installer" });
     Ok(())
 }
 
 fn summary(project: &Project) {
-    let manifest = &project.manifest;
-    field("Publisher", &manifest.app.publisher);
-    field("Program", &manifest.app.executable);
-    field("Files", format!("{} ({})", manifest.files.len(), output::size(manifest.total_size())));
-    field("Installs to", format!(r"%LOCALAPPDATA%\Programs\{}", manifest.install.folder));
-    if !manifest.uninstall.data.is_empty() {
-        field("Data", manifest.uninstall.data.join(", "));
-    }
+    crate::inspect::details(&project.manifest);
 }
 
 /// `examples/hello/../../dist/x.exe` becomes `dist/x.exe`, without touching

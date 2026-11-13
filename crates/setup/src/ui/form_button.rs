@@ -145,7 +145,11 @@ impl RenderOnce for FormButton {
         }
         let button = button.cursor(CursorStyle::PointingHand);
         let button = match self.on_click {
-            Some(handler) => button.on_click(move |event, window, cx| handler(event, window, cx)),
+            // A button inside a clickable row handles its click alone.
+            Some(handler) => button.on_click(move |event, window, cx| {
+                cx.stop_propagation();
+                handler(event, window, cx)
+            }),
             None => button,
         };
         Interaction::track(&state, button).into_any_element()
