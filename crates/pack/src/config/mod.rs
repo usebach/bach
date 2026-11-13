@@ -1,9 +1,14 @@
-//! `bach.toml`: what to install and how the installer looks.
+//! `bach.toml`: what to install and how the installer looks and talks.
 //!
 //! [`load`] reads the file, checks every value and gathers the files to
 //! package, so `bach check` and `bach build` fail early, with a sentence
 //! naming the setting at fault, instead of producing a broken installer.
 //! Paths in the file are relative to the file itself.
+
+mod gather;
+mod icon;
+mod options;
+mod text;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -27,6 +32,14 @@ struct File {
     installer: InstallerSection,
     #[serde(default)]
     uninstall: UninstallSection,
+    #[serde(default)]
+    components: Vec<options::ComponentSection>,
+    #[serde(default)]
+    protocols: Vec<options::ProtocolSection>,
+    #[serde(default)]
+    file_types: Vec<options::FileTypeSection>,
+    #[serde(default)]
+    text: BTreeMap<String, toml::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,11 +68,19 @@ struct FilesSection {
 struct InstallerSection {
     output: Option<String>,
     folder: Option<String>,
-    desktop_shortcut: Option<bool>,
     theme: Option<String>,
     accent: Option<String>,
     logo: Option<String>,
     compression: Option<String>,
+    languages: Option<Vec<String>>,
+    license: Option<toml::Value>,
+    desktop_shortcut: Option<toml::Value>,
+    start_menu_shortcut: Option<toml::Value>,
+    start_with_windows: Option<toml::Value>,
+    add_to_path: Option<toml::Value>,
+    path_folder: Option<String>,
+    change_folder: Option<bool>,
+    open_button: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -67,7 +88,7 @@ struct InstallerSection {
 struct UninstallSection {
     #[serde(default)]
     data: Vec<String>,
-    data_description: Option<String>,
+    data_description: Option<toml::Value>,
 }
 
 /// A checked `bach.toml`, ready to build.
@@ -84,12 +105,13 @@ pub struct Project {
     pub logo: Option<Vec<u8>>,
     pub output: PathBuf,
     pub compression: Compression,
+    /// Things that build fine but probably aren't meant, one sentence each.
+    pub warnings: Vec<String>,
 }
 
 /// Reads, checks and gathers a `bach.toml`.
 pub fn load(path: &Path) -> Result<Project> {
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("couldn't read {}", path.display()))?;
+    let text = std::fs::read_to_string(path).with_context(|| format!("couldn't read {}", path.display()))?;
     let root = path
         .parent()
         .map(|parent| if parent.as_os_str().is_empty() { Path::new(".") } else { parent })
@@ -100,10 +122,21 @@ pub fn load(path: &Path) -> Result<Project> {
 
 /// [`load`] for text already in hand, with paths relative to `root`.
 pub fn parse(text: &str, root: &Path) -> Result<Project> {
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let file: File = toml::from_str(text).map_err(|err| anyhow::anyhow!("{}", err.to_string().trim()))?;
+    let mut warnings = Vec::new();
     let app = check_app(&file.app)?;
-    let install = check_install(&file.installer, &app)?;
-    let uninstall = check_uninstall(&file.uninstall)?;
+    let install = options::install(&file.installer, &app)?;
+    let languages = text::languages(file.installer.languages.as_deref())?;
+    let mut locale = text::locale(&file.text, &languages, &mut warnings)?;
+    locale.license = text::license(file.installer.license.as_ref(), root, &languages)?;
+    if let Some(value) = &file.uninstall.data_description {
+        let description = text::localized(value, "uninstall.data_description", &languages)?;
+        locale.text.insert(crate::i18n::Key::delete_data_description.name().into(), description);
+    }
+    for folder in &file.uninstall.data {
+        paths::check_data_folder(folder).context("uninstall.data")?;
+    }
 
     let theme = match &file.installer.theme {
         None => manifest::Theme::System,
@@ -112,9 +145,11 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
     };
     let accent = match &file.installer.accent {
         None => None,
-        Some(value) => Some(parse_hex(value).map(|_| value.trim().to_ascii_lowercase()).with_context(|| {
-            format!("installer.accent is \"{value}\"; use a colour like \"#2563eb\"")
-        })?),
+        Some(value) => Some(
+            parse_hex(value)
+                .map(|_| value.trim().to_ascii_lowercase())
+                .with_context(|| format!("installer.accent is \"{value}\"; use a colour like \"#2563eb\""))?,
+        ),
     };
     let compression = match &file.installer.compression {
         None => Compression::default(),
@@ -132,21 +167,7 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
             Some(path)
         }
     };
-    let (logo_kind, logo) = match &file.installer.logo {
-        None => (None, None),
-        Some(logo) => {
-            let path = existing_file(root, logo, "installer.logo")?;
-            let kind = if has_extension(&path, "svg") {
-                LogoKind::Svg
-            } else if has_extension(&path, "png") {
-                LogoKind::Png
-            } else {
-                bail!("installer.logo must be an .svg or a .png file; {logo} is neither");
-            };
-            let bytes = std::fs::read(&path).with_context(|| format!("couldn't read {}", path.display()))?;
-            (Some(kind), Some(bytes))
-        }
-    };
+    let (logo_kind, logo, hide_logo) = logo(file.installer.logo.as_deref(), icon.as_deref(), root, &mut warnings)?;
 
     let output_template = file.installer.output.as_deref().unwrap_or(DEFAULT_OUTPUT);
     let output = root.join(fill_template(output_template, &app));
@@ -163,7 +184,7 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
             bail!("files.exclude has an empty pattern");
         }
     }
-    let sources = gather(&source_dir, &file.files.exclude, &output)?;
+    let sources = gather::gather(&source_dir, &file.files.exclude, &output)?;
     if sources.is_empty() {
         bail!("{} has no files to install", source_dir.display());
     }
@@ -173,10 +194,7 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
             clash.path.display()
         );
     }
-    let executable_known = sources
-        .iter()
-        .any(|source| source.packaged.eq_ignore_ascii_case(&app.executable));
-    if !executable_known {
+    if !sources.iter().any(|source| source.packaged.eq_ignore_ascii_case(&app.executable)) {
         bail!(
             "app.executable is \"{}\", but there's no such file in {} (or it's excluded)",
             app.executable,
@@ -184,21 +202,32 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
         );
     }
 
-    let files = sources
-        .iter()
-        .map(|source| FileEntry { path: source.packaged.clone(), size: source.size })
-        .collect();
+    let mut files: Vec<FileEntry> = sources.iter().map(|source| FileEntry::new(&source.packaged, source.size)).collect();
+    let components = options::components(&file.components, &mut files, &app, &languages)?;
     let manifest = Manifest {
         format: crate::FORMAT_VERSION,
         builder: crate::VERSION.into(),
         app,
         install,
-        uninstall,
-        look: manifest::Look { theme, accent, logo: logo_kind },
+        uninstall: manifest::Uninstall { data: file.uninstall.data.clone(), data_description: None },
+        look: manifest::Look { theme, accent, logo: logo_kind, hide_logo },
         files,
+        components,
+        protocols: options::protocols(&file.protocols)?,
+        file_types: options::file_types(&file.file_types)?,
+        locale,
+        chosen: None,
     };
+    if manifest.install.add_to_path != manifest::Choice::Never {
+        if let Some(folder) = &manifest.install.path_folder {
+            let inside = manifest.files.iter().any(|entry| entry.path.to_lowercase().starts_with(&format!("{}/", folder.to_lowercase())));
+            if !inside {
+                warnings.push(format!("installer.path_folder is \"{folder}\", but no installed file is in it"));
+            }
+        }
+    }
     manifest.validate()?;
-    Ok(Project { root: root.to_path_buf(), manifest, sources, icon, logo, output, compression })
+    Ok(Project { root: root.to_path_buf(), manifest, sources, icon, logo, output, compression, warnings })
 }
 
 fn check_app(section: &AppSection) -> Result<manifest::App> {
@@ -236,22 +265,48 @@ fn check_app(section: &AppSection) -> Result<manifest::App> {
     })
 }
 
-fn check_install(section: &InstallerSection, app: &manifest::App) -> Result<manifest::Install> {
-    let folder = match &section.folder {
-        Some(folder) => folder.trim().to_string(),
-        None => app.id.clone(),
-    };
-    if !paths::is_valid_id(&folder) {
-        bail!("installer.folder is \"{folder}\"; it must be a plain folder name, like \"{}\"", app.id);
+/// The logo: a file, `"none"`, or the app's icon when it has a PNG image.
+fn logo(
+    logo: Option<&str>,
+    icon: Option<&Path>,
+    root: &Path,
+    warnings: &mut Vec<String>,
+) -> Result<(Option<LogoKind>, Option<Vec<u8>>, bool)> {
+    match logo.map(str::trim) {
+        Some(none) if none.eq_ignore_ascii_case("none") => Ok((None, None, true)),
+        Some(logo) => {
+            let path = existing_file(root, logo, "installer.logo")?;
+            let kind = if has_extension(&path, "svg") {
+                LogoKind::Svg
+            } else if has_extension(&path, "png") {
+                LogoKind::Png
+            } else {
+                bail!("installer.logo must be an .svg or a .png file (or \"none\"); {logo} is neither");
+            };
+            let bytes = std::fs::read(&path).with_context(|| format!("couldn't read {}", path.display()))?;
+            if kind == LogoKind::Png && !bytes.starts_with(icon::PNG_SIGNATURE) {
+                bail!("installer.logo is \"{logo}\", but it isn't a PNG image inside");
+            }
+            Ok((Some(kind), Some(bytes), false))
+        }
+        None => {
+            let Some(icon) = icon else {
+                return Ok((None, None, false));
+            };
+            let bytes = std::fs::read(icon).with_context(|| format!("couldn't read {}", icon.display()))?;
+            match icon::largest_png(&bytes) {
+                Some(png) => Ok((Some(LogoKind::Png), Some(png), false)),
+                None => {
+                    warnings.push(
+                        "app.icon has no PNG-compressed image, so the window shows the Bach mark; \
+                         set installer.logo to show your own"
+                            .into(),
+                    );
+                    Ok((None, None, false))
+                }
+            }
+        }
     }
-    Ok(manifest::Install { folder, desktop_shortcut: section.desktop_shortcut.unwrap_or(true) })
-}
-
-fn check_uninstall(section: &UninstallSection) -> Result<manifest::Uninstall> {
-    for folder in &section.data {
-        paths::check_data_folder(folder).context("uninstall.data")?;
-    }
-    Ok(manifest::Uninstall { data: section.data.clone(), data_description: optional(&section.data_description) })
 }
 
 fn required(value: &str, key: &str) -> Result<String> {
@@ -296,128 +351,5 @@ pub fn parse_hex(value: &str) -> Option<u32> {
     u32::from_str_radix(hex, 16).ok()
 }
 
-/// Every file under `dir`, sorted, minus the excluded ones and the output.
-fn gather(dir: &Path, exclude: &[String], output: &Path) -> Result<Vec<Source>> {
-    let output = std::fs::canonicalize(output).ok();
-    let mut found = BTreeMap::new();
-    walk(dir, "", &mut |packaged, path, size| {
-        if exclude.iter().any(|pattern| paths::matches(pattern, packaged)) {
-            return Ok(());
-        }
-        if output.is_some() && std::fs::canonicalize(path).ok() == output {
-            return Ok(());
-        }
-        let key = packaged.to_lowercase();
-        if found.contains_key(&key) {
-            bail!("{} is in the source folder twice, in different letter case", packaged);
-        }
-        found.insert(key, Source { packaged: packaged.to_string(), path: path.to_path_buf(), size });
-        Ok(())
-    })?;
-    Ok(found.into_values().collect())
-}
-
-fn walk(dir: &Path, prefix: &str, visit: &mut dyn FnMut(&str, &Path, u64) -> Result<()>) -> Result<()> {
-    let entries = std::fs::read_dir(dir).with_context(|| format!("couldn't list {}", dir.display()))?;
-    for entry in entries {
-        let entry = entry?;
-        let name = entry.file_name();
-        let Some(name) = name.to_str() else {
-            bail!("{} has a name that isn't valid text", entry.path().display());
-        };
-        let packaged = if prefix.is_empty() { name.to_string() } else { format!("{prefix}/{name}") };
-        let path = entry.path();
-        let meta = std::fs::symlink_metadata(&path)?;
-        if meta.file_type().is_symlink() {
-            bail!("{} is a symbolic link; Bach packages real files only", path.display());
-        }
-        if meta.is_dir() {
-            walk(&path, &packaged, visit)?;
-        } else if meta.is_file() {
-            paths::normalize(&packaged).with_context(|| format!("can't package {}", path.display()))?;
-            visit(&packaged, &path, meta.len())?;
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn project_dir(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("bach-config-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("build/sub")).unwrap();
-        std::fs::write(dir.join("build/hello.exe"), b"MZ").unwrap();
-        std::fs::write(dir.join("build/sub/data.txt"), b"data").unwrap();
-        std::fs::write(dir.join("build/hello.pdb"), b"debug").unwrap();
-        dir
-    }
-
-    const MINIMAL: &str = r#"
-        [app]
-        name = "Hello"
-        version = "1.2.3"
-        publisher = "Example"
-        executable = "hello.exe"
-
-        [files]
-        source = "build"
-        exclude = ["*.pdb"]
-    "#;
-
-    #[test]
-    fn a_minimal_config_builds() {
-        let dir = project_dir("minimal");
-        let project = parse(MINIMAL, &dir).unwrap();
-        let paths: Vec<_> = project.manifest.files.iter().map(|f| f.path.as_str()).collect();
-        assert_eq!(paths, ["hello.exe", "sub/data.txt"]);
-        assert_eq!(project.manifest.app.id, "Hello");
-        assert_eq!(project.manifest.install.folder, "Hello");
-        assert!(project.manifest.install.desktop_shortcut);
-        assert_eq!(project.output, dir.join("dist/Hello-Setup-1.2.3.exe"));
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn mistakes_name_their_setting() {
-        let dir = project_dir("mistakes");
-        let cases = [
-            (MINIMAL.replace("hello.exe\"", "missing.exe\""), "app.executable"),
-            (MINIMAL.replace("\"build\"", "\"nowhere\""), "files.source"),
-            (format!("{MINIMAL}\n[installer]\ntheme = \"blue\""), "installer.theme"),
-            (format!("{MINIMAL}\n[installer]\naccent = \"red\""), "installer.accent"),
-            (format!("{MINIMAL}\n[uninstall]\ndata = ['C:\\Windows']"), "uninstall.data"),
-            (MINIMAL.replace("name = \"Hello\"", "name = \"He/llo\""), "app.name"),
-        ];
-        for (text, key) in cases {
-            let err = format!("{:#}", parse(&text, &dir).unwrap_err());
-            assert!(err.contains(key), "expected {key} in: {err}");
-        }
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn unknown_settings_are_typos() {
-        let dir = project_dir("typo");
-        let text = MINIMAL.replace("[files]", "nmae = \"x\"\n[files]");
-        assert!(parse(&text, &dir).is_err());
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn output_names_are_filled_in() {
-        let dir = project_dir("template");
-        let app = parse(MINIMAL, &dir).unwrap().manifest.app;
-        assert_eq!(fill_template("{name}_{version}_{id}.exe", &app), "Hello_1.2.3_Hello.exe");
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn hex_colours() {
-        assert_eq!(parse_hex("#2563eb"), Some(0x2563eb));
-        assert_eq!(parse_hex("FFFFFF"), Some(0xffffff));
-        assert_eq!(parse_hex("#fff"), None);
-    }
-}
+mod tests;

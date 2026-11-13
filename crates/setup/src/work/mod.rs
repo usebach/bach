@@ -1,8 +1,10 @@
 //! The work behind the setup window: installing, updating and removing.
-//! Each job runs on its own thread (file copies and COM block) and reports
-//! progress as it goes; the view only draws what it hears.
+//! Each job runs on its own thread (file copies, COM and the registry
+//! block) and reports progress as it goes; the view only draws what it
+//! hears. A silent run calls the same jobs without a window.
 
 mod install;
+mod place;
 mod preview;
 mod remove;
 
@@ -11,9 +13,13 @@ use std::io;
 use std::path::Path;
 use std::time::Duration;
 
-pub use install::{install, InstallPlan};
+use bach_pack::i18n::Key;
+
+pub use install::{install, previous_install, InstallPlan};
 pub use preview::pretend;
 pub use remove::{remove, RemovePlan};
+
+use crate::texts::Texts;
 
 /// What a job tells the view.
 pub enum Event {
@@ -29,11 +35,12 @@ pub type Report<'a> = &'a dyn Fn(f32, &str);
 /// Sharing violation or access denied: on a program file, that's a running
 /// copy holding it.
 fn is_in_use(err: &io::Error) -> bool {
-    matches!(err.raw_os_error(), Some(32) | Some(5))
+    matches!(err.raw_os_error(), Some(32) | Some(5) | Some(33))
 }
 
-fn still_open(name: &str) -> String {
-    format!("{name} is still open. Close it, then try again.")
+/// ERROR_DISK_FULL or ERROR_HANDLE_DISK_FULL.
+fn is_disk_full(err: &io::Error) -> bool {
+    matches!(err.raw_os_error(), Some(112) | Some(39)) || err.kind() == io::ErrorKind::StorageFull
 }
 
 fn same_file(a: &Path, b: &Path) -> bool {
@@ -53,18 +60,18 @@ fn remove_file_if_present(path: &Path) -> io::Result<()> {
 
 /// Deletes a file, waiting a moment for a program that is just exiting
 /// (the app, or the uninstaller that started a temp copy) to let go of it.
-fn remove_waiting(path: &Path, name: &str) -> Result<(), String> {
+fn remove_waiting(path: &Path, texts: &Texts, still_open: Key) -> Result<(), String> {
     let mut last = None;
     for _ in 0..20 {
         match remove_file_if_present(path) {
             Ok(()) => return Ok(()),
             Err(err) if is_in_use(&err) => last = Some(err),
-            Err(err) => return Err(format!("Couldn't delete {}. {}", path.display(), describe(&err))),
+            Err(err) => return Err(failed(texts, Key::error_delete, path, &err)),
         }
         std::thread::sleep(Duration::from_millis(150));
     }
     match last {
-        Some(_) => Err(still_open(name)),
+        Some(_) => Err(texts.get(still_open)),
         None => Ok(()),
     }
 }
@@ -83,6 +90,15 @@ fn remove_empty_parents<'a>(root: &Path, files: impl Iterator<Item = &'a str>) {
     }
 }
 
+/// "Couldn't write C:\…\app.dll. Access is denied." in the window's
+/// language (the second sentence comes from Windows, in the user's).
+fn failed(texts: &Texts, key: Key, path: &Path, err: &io::Error) -> String {
+    // A full disk reads "There is not enough space on the disk." here, from
+    // Windows; the free-space check before unpacking says it with numbers.
+    let path = path.display().to_string();
+    format!("{} {}", texts.with(key, &[("path", &path)]), describe(err))
+}
+
 /// An OS error as a sentence, without the "(os error 5)" tail.
 fn describe(err: &io::Error) -> String {
     let text = err.to_string();
@@ -94,12 +110,12 @@ fn describe(err: &io::Error) -> String {
 }
 
 fn plain(err: &anyhow::Error) -> String {
-    sentence(err.to_string())
+    sentence(format!("{err:#}"))
 }
 
 fn sentence(text: String) -> String {
     let text = text.trim().to_string();
-    if text.ends_with(['.', '!', '?']) {
+    if text.is_empty() || text.ends_with(['.', '!', '?', '。']) {
         text
     } else {
         format!("{text}.")
@@ -118,9 +134,11 @@ mod tests {
     }
 
     #[test]
-    fn in_use_errors_are_recognised() {
+    fn in_use_and_full_disks_are_recognised() {
         assert!(is_in_use(&io::Error::from_raw_os_error(32)));
         assert!(!is_in_use(&io::Error::from_raw_os_error(2)));
+        assert!(is_disk_full(&io::Error::from_raw_os_error(112)));
+        assert!(!is_disk_full(&io::Error::from_raw_os_error(5)));
     }
 
     #[test]

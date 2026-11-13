@@ -55,18 +55,29 @@ impl Package {
                 id: "Sample".into(),
                 name: "Sample".into(),
                 version: "1.0.0".into(),
-                publisher: "Bach".into(),
-                description: Some("A preview of the Bach installer.".into()),
+                publisher: "Sample Inc.".into(),
+                description: Some("A preview of the installer window.".into()),
                 website: None,
                 executable: "sample.exe".into(),
             },
-            install: manifest::Install { folder: "Sample".into(), desktop_shortcut: true },
-            uninstall: manifest::Uninstall {
-                data: vec![r"%APPDATA%\Sample".into()],
-                data_description: Some("Settings and saved files.".into()),
+            install: manifest::Install {
+                folder: "Sample".into(),
+                desktop_shortcut: manifest::Choice::On,
+                start_menu_shortcut: manifest::Choice::Always,
+                start_with_windows: manifest::Choice::Never,
+                add_to_path: manifest::Choice::Never,
+                path_folder: None,
+                change_folder: true,
+                open_button: true,
             },
+            uninstall: manifest::Uninstall { data: vec![r"%APPDATA%\Sample".into()], data_description: None },
             look: manifest::Look::default(),
-            files: vec![FileEntry { path: "sample.exe".into(), size: 48 << 20 }],
+            files: vec![FileEntry::new("sample.exe", 48 << 20)],
+            components: Vec::new(),
+            protocols: Vec::new(),
+            file_types: Vec::new(),
+            locale: manifest::Locale::default(),
+            chosen: None,
         };
         Self { manifest, exe: PathBuf::new(), layout: None, logo: None }
     }
@@ -75,10 +86,6 @@ impl Package {
     /// uninstaller.
     pub fn has_files(&self) -> bool {
         self.layout.is_some_and(|layout| layout.has_archive())
-    }
-
-    pub fn name(&self) -> &str {
-        &self.manifest.app.name
     }
 
     pub fn version(&self) -> &str {

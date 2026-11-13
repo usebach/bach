@@ -1,17 +1,20 @@
 //! The setup window's state: which page it's on, the choices on the first
-//! page, and the running job. Drawing lives in `pages.rs`.
+//! page, and the running job. Drawing lives in `pages/`.
 
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bach_pack::i18n::Key;
+use bach_pack::manifest::{Choices, Manifest};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gpui::{Context, SharedString, Task, Window};
 
 use crate::launch::Mode;
 use crate::package::Package;
-use crate::system::{self, Installed};
+use crate::system::Installed;
+use crate::texts::Texts;
 use crate::work::{self, Event, InstallPlan, RemovePlan};
 
 /// The bar gets this long to glide to full before the last page shows.
@@ -19,6 +22,8 @@ const FINISH_HOLD: Duration = Duration::from_millis(650);
 
 #[derive(Clone, Debug)]
 pub enum Stage {
+    /// The license to accept before anything else.
+    License,
     /// The first page: options and the go button.
     Ready,
     Working {
@@ -29,8 +34,21 @@ pub enum Stage {
     Failed(SharedString),
 }
 
+/// One box on the install page.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Toggle {
+    DesktopShortcut,
+    StartMenu,
+    StartWithWindows,
+    AddToPath,
+    /// A component, by its index in the manifest.
+    Component(usize),
+    DeleteData,
+}
+
 pub struct SetupView {
     pub package: Arc<Package>,
+    pub texts: Arc<Texts>,
     pub mode: Mode,
     /// Pretend: nothing is installed or removed.
     pub preview: bool,
@@ -38,7 +56,7 @@ pub struct SetupView {
     pub existing: Option<Installed>,
     /// Where the app goes (or is, when removing).
     pub dir: PathBuf,
-    pub desktop_shortcut: bool,
+    pub choices: Choices,
     pub delete_data: bool,
     pub stage: Stage,
     /// Counts attempts, so each one's page and bar start fresh.
@@ -48,34 +66,26 @@ pub struct SetupView {
 }
 
 impl SetupView {
-    pub fn new(package: Arc<Package>, mode: Mode, preview: bool) -> Self {
+    pub fn new(package: Arc<Package>, texts: Arc<Texts>, mode: Mode, preview: bool) -> Self {
         let manifest = &package.manifest;
-        let (existing, dir) = match &mode {
+        let (existing, previous, dir, choices) = match &mode {
             Mode::Install => {
-                let existing = system::installed(manifest);
-                let dir = existing
-                    .as_ref()
-                    .map(|installed| installed.dir.clone())
-                    .unwrap_or_else(|| system::default_install_dir(&manifest.install.folder));
-                (existing, dir)
+                let start = crate::start::install(manifest);
+                (start.existing, start.previous, start.dir, start.choices)
             }
-            Mode::Remove { dir } => (None, dir.clone()),
+            Mode::Remove { dir } => (None, None, dir.clone(), Choices::default()),
         };
-        // An update keeps the desktop shortcut as it was; a first install
-        // offers the config's default.
-        let desktop_shortcut = match &existing {
-            Some(_) => system::desktop_shortcut(manifest).is_ok_and(|path| path.exists()),
-            None => manifest.install.desktop_shortcut,
-        };
+        let stage = if needs_license(manifest, previous.as_ref(), &mode, &texts) { Stage::License } else { Stage::Ready };
         Self {
             package,
+            texts,
             mode,
             preview,
             existing,
             dir,
-            desktop_shortcut,
+            choices,
             delete_data: false,
-            stage: Stage::Ready,
+            stage,
             attempt: 0,
             job: None,
             picker: None,
@@ -86,33 +96,72 @@ impl SetupView {
         matches!(self.mode, Mode::Remove { .. })
     }
 
-    pub fn toggle_desktop_shortcut(&mut self, cx: &mut Context<Self>) {
-        self.desktop_shortcut = !self.desktop_shortcut;
+    pub fn is_on(&self, toggle: Toggle) -> bool {
+        let choices = &self.choices;
+        match toggle {
+            Toggle::DesktopShortcut => choices.desktop_shortcut,
+            Toggle::StartMenu => choices.start_menu_shortcut,
+            Toggle::StartWithWindows => choices.start_with_windows,
+            Toggle::AddToPath => choices.add_to_path,
+            Toggle::Component(index) => self
+                .package
+                .manifest
+                .components
+                .get(index)
+                .is_some_and(|component| choices.components.contains(&component.id)),
+            Toggle::DeleteData => self.delete_data,
+        }
+    }
+
+    pub fn toggle(&mut self, toggle: Toggle, cx: &mut Context<Self>) {
+        let on = !self.is_on(toggle);
+        let choices = &mut self.choices;
+        match toggle {
+            Toggle::DesktopShortcut => choices.desktop_shortcut = on,
+            Toggle::StartMenu => choices.start_menu_shortcut = on,
+            Toggle::StartWithWindows => choices.start_with_windows = on,
+            Toggle::AddToPath => choices.add_to_path = on,
+            Toggle::Component(index) => {
+                if let Some(component) = self.package.manifest.components.get(index) {
+                    choices.set(&self.package.manifest, &component.id.clone(), on);
+                }
+            }
+            Toggle::DeleteData => self.delete_data = on,
+        }
         cx.notify();
     }
 
-    pub fn toggle_delete_data(&mut self, cx: &mut Context<Self>) {
-        self.delete_data = !self.delete_data;
+    /// The license is accepted: on to the choices.
+    pub fn accept_license(&mut self, cx: &mut Context<Self>) {
+        self.stage = Stage::Ready;
         cx.notify();
     }
 
     /// Opens the folder picker; the pick becomes `<folder>\<app folder>`
     /// unless it already is one.
     pub fn choose_folder(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let title = format!("Choose where to install {}", self.package.name());
+        if self.picker.is_some() || !self.can_change_folder() {
+            return;
+        }
+        let title = self.texts.get(Key::choose_folder);
         let picked = crate::ui::folder_dialog::pick_folder(&title, window);
         let folder_name = self.package.manifest.install.folder.clone();
         self.picker = Some(cx.spawn(async move |this, cx| {
-            let Some(folder) = picked.await else {
-                return;
-            };
+            let picked = picked.await;
             this.update(cx, |this, cx| {
-                this.dir = install_folder(folder, &folder_name);
+                if let Some(folder) = picked {
+                    this.dir = install_folder(folder, &folder_name);
+                }
                 this.picker = None;
                 cx.notify();
             })
             .ok();
         }));
+    }
+
+    /// A first install may move; an update stays where it is.
+    pub fn can_change_folder(&self) -> bool {
+        !self.is_removing() && self.existing.is_none() && self.package.manifest.install.change_folder
     }
 
     /// Starts installing or removing on a worker thread.
@@ -121,18 +170,18 @@ impl SetupView {
             return;
         }
         let (sender, mut events) = mpsc::unbounded::<Event>();
+        let texts = self.texts.clone();
         let job = match (&self.mode, self.preview) {
-            (_, true) => Job::Pretend {
-                name: self.package.name().to_string(),
-                removing: self.is_removing(),
-            },
+            (_, true) => Job::Pretend { removing: self.is_removing() },
             (Mode::Install, false) => Job::Install(InstallPlan {
                 package: self.package.clone(),
+                texts: texts.clone(),
                 dir: self.dir.clone(),
-                desktop_shortcut: self.desktop_shortcut,
+                choices: self.choices.clone(),
             }),
             (Mode::Remove { .. }, false) => Job::Remove(RemovePlan {
                 package: self.package.clone(),
+                texts: texts.clone(),
                 dir: self.dir.clone(),
                 delete_data: self.delete_data,
             }),
@@ -141,19 +190,18 @@ impl SetupView {
             let report = |progress: f32, label: &str| {
                 sender.unbounded_send(Event::Progress(progress, label.to_string())).ok();
             };
-            let result = match &job {
+            // A panic on the worker becomes a failed page, never a crash.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match &job {
                 Job::Install(plan) => work::install(plan, &report),
                 Job::Remove(plan) => work::remove(plan, &report),
-                Job::Pretend { name, removing } => work::pretend(name, *removing, &report),
-            };
+                Job::Pretend { removing } => work::pretend(&texts, *removing, &report),
+            }))
+            .unwrap_or_else(|_| Err(texts.get(Key::error_damaged)));
             sender.unbounded_send(Event::Finished(result)).ok();
         });
 
         self.attempt = self.attempt.saturating_add(1);
-        self.stage = Stage::Working {
-            progress: 0.0,
-            label: "Getting ready".into(),
-        };
+        self.stage = Stage::Working { progress: 0.0, label: self.texts.get(Key::step_preparing).into() };
         cx.notify();
         self.job = Some(cx.spawn(async move |this, cx| {
             while let Some(event) = events.next().await {
@@ -197,22 +245,38 @@ impl SetupView {
         match std::process::Command::new(&exe).current_dir(&self.dir).spawn() {
             Ok(_) => cx.quit(),
             Err(err) => {
-                let name = self.package.name();
-                self.stage = Stage::Failed(format!("{name} is installed, but it didn't start: {err}").into());
+                let message = self.texts.with(Key::error_open_failed, &[("error", &err.to_string())]);
+                self.stage = Stage::Failed(message.into());
                 cx.notify();
             }
         }
     }
 
+    /// Closing is refused while work runs: stopping halfway is what the
+    /// all-or-nothing install avoids.
     pub fn close(&mut self, cx: &mut Context<Self>) {
-        cx.quit();
+        if !matches!(self.stage, Stage::Working { .. }) {
+            cx.quit();
+        }
     }
 }
 
 enum Job {
     Install(InstallPlan),
     Remove(RemovePlan),
-    Pretend { name: String, removing: bool },
+    Pretend { removing: bool },
+}
+
+/// A first install shows the license; an update only when it changed.
+fn needs_license(manifest: &Manifest, previous: Option<&Manifest>, mode: &Mode, texts: &Texts) -> bool {
+    let code = texts.language.code;
+    let Some(license) = manifest.license(code) else {
+        return false;
+    };
+    if matches!(mode, Mode::Remove { .. }) {
+        return false;
+    }
+    previous.and_then(|previous| previous.license(code)) != Some(license)
 }
 
 /// Installing into "D:\Apps" means "D:\Apps\Hello"; "D:\Apps\Hello" stays.

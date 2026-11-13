@@ -17,7 +17,13 @@ mod package;
 #[cfg(windows)]
 mod pages;
 #[cfg(windows)]
+mod silent;
+#[cfg(windows)]
+mod start;
+#[cfg(windows)]
 mod system;
+#[cfg(windows)]
+mod texts;
 #[cfg(windows)]
 mod theme;
 #[cfg(windows)]
