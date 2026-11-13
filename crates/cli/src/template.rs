@@ -7,6 +7,7 @@ use anyhow::{bail, Context, Result};
 const TEMPLATE: &str = r##"# bach.toml: how Bach builds your installer.
 # Build it with `bach build`; see what it installs with `bach check`;
 # look at the window with `bach preview`. Paths are relative to this file.
+# Every setting: https://github.com/usebach/bach/blob/main/docs/config.md
 
 [app]
 name = "@NAME@"
@@ -14,10 +15,9 @@ version = "1.0.0"
 publisher = "@NAME@"
 # The program to start, inside the files folder below.
 executable = "@EXE@.exe"
-# description = "One line about your app."
+# description = "One line about your app."   # also the install page's subtitle
 # website = "https://example.com"
-# The setup file's own icon (a .ico file).
-# icon = "icon.ico"
+# icon = "icon.ico"           # the setup file's icon (and the window's logo)
 
 [files]
 # Everything in this folder is installed. Build your app into it first.
@@ -26,10 +26,43 @@ source = "build"
 
 [installer]
 # output = "dist/{name}-Setup-{version}.exe"
-# theme = "system"          # system, light or dark
-# accent = "#2563eb"        # buttons, the progress bar and ticked boxes
-# logo = "logo.svg"         # .svg (one colour, follows the theme) or .png
-# desktop_shortcut = true   # whether the box starts ticked
+# theme = "system"            # system, light or dark
+# accent = "#2563eb"          # buttons, the progress bar and ticked boxes
+# logo = "logo.svg"           # .svg (one colour) or .png, or "none"
+# languages = ["en", "de"]    # default: all 13, following Windows' language
+# license = "LICENSE.txt"     # shown first, to accept before installing
+#
+# Each option is true (offered, ticked), false (offered, unticked),
+# "always" (done without asking) or "never".
+# desktop_shortcut = true
+# start_menu_shortcut = "always"
+# start_with_windows = "never"
+# add_to_path = "never"       # for command-line tools
+# path_folder = "bin"         # what goes on PATH (default: the install folder)
+# change_folder = true        # may the user pick another folder?
+# open_button = true          # offer "Open @NAME@" at the end?
+
+# Optional parts the user can leave out:
+# [[components]]
+# id = "samples"
+# title = "Sample projects"
+# description = "Examples to learn from."
+# files = ["samples/**"]
+# default = true
+
+# Links like @EXE@://open start your app with the link:
+# [[protocols]]
+# scheme = "@EXE@"
+
+# Files your app opens, offered under "Open with":
+# [[file_types]]
+# extension = ".@EXE@"
+# description = "@NAME@ document"
+
+# Any text in the window, in one language or per language:
+# [text]
+# install_title = { en = "Get {name}", de = "Hol dir {name}" }
+# footer = "Made with care by {publisher}"
 
 [uninstall]
 # Offered as "Also delete my data" when uninstalling. Each folder must start
@@ -45,11 +78,16 @@ pub fn init(dir: &Path) -> Result<()> {
     }
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", dir.display()))?;
     let name = guess_name(dir);
-    let exe = name.to_lowercase().replace(' ', "-");
+    let exe = executable_name(&name);
     let text = TEMPLATE.replace("@NAME@", &name).replace("@EXE@", &exe);
     std::fs::write(&path, text).with_context(|| format!("couldn't write {}", path.display()))?;
     println!("Wrote {}. Fill in [app] and [files], then run `bach check`.", path.display());
     Ok(())
+}
+
+/// "My Cool App" → "my-cool-app": also a usable link scheme and extension.
+fn executable_name(name: &str) -> String {
+    name.to_lowercase().replace(' ', "-")
 }
 
 /// The folder's name, tidied into something that works as an app name.
@@ -87,7 +125,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("build")).unwrap();
         init(&dir).unwrap();
         let name = guess_name(&dir);
-        let exe = name.to_lowercase().replace(' ', "-");
+        let exe = executable_name(&name);
         std::fs::write(dir.join("build").join(format!("{exe}.exe")), b"MZ").unwrap();
         let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();
         assert_eq!(project.manifest.app.name, name);

@@ -6,9 +6,11 @@
 //! bach build             write the setup file
 //! bach preview           open the installer window without installing anything
 //! bach inspect FILE      show what a setup file installs
+//! bach doctor            check that everything a build needs is in place
 //! ```
 
 mod builder;
+mod doctor;
 mod inspect;
 mod output;
 #[cfg(windows)]
@@ -68,6 +70,9 @@ enum Command {
         /// Override the theme: system, light or dark.
         #[arg(long)]
         theme: Option<String>,
+        /// Show it in this language (en, de, fr, …) instead of Windows' own.
+        #[arg(long)]
+        lang: Option<String>,
         /// The setup runtime to build on (default: bach-setup.exe next to bach).
         #[arg(long, env = "BACH_RUNTIME")]
         runtime: Option<PathBuf>,
@@ -76,6 +81,12 @@ enum Command {
     Inspect {
         /// A setup file (or an installed uninstall.exe).
         file: PathBuf,
+    },
+    /// Check that everything a build needs is in place.
+    Doctor {
+        /// The config file.
+        #[arg(default_value = "bach.toml")]
+        config: PathBuf,
     },
 }
 
@@ -87,10 +98,17 @@ fn main() -> ExitCode {
         Command::Build { config, out, runtime, fast } => {
             builder::build(&config, out.as_deref(), runtime.as_deref(), fast).map(|_| ())
         }
-        Command::Preview { config, uninstall, theme, runtime } => {
-            builder::preview(&config, uninstall, theme.as_deref(), runtime.as_deref())
-        }
+        Command::Preview { config, uninstall, theme, lang, runtime } => builder::preview(
+            &config,
+            builder::PreviewOptions {
+                uninstall,
+                theme: theme.as_deref(),
+                lang: lang.as_deref(),
+                runtime: runtime.as_deref(),
+            },
+        ),
         Command::Inspect { file } => inspect::inspect(&file),
+        Command::Doctor { config } => doctor::doctor(&config),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
