@@ -42,13 +42,19 @@ bach build
 
 That's a complete installer: `dist\Hello-Setup-1.0.0.exe`.
 
+<p align="center">
+  <img src="docs/images/install-light.png" width="420" alt="The install window in light mode, in English">
+  &nbsp;
+  <img src="docs/images/install-dark.png" width="420" alt="The same window in dark mode, in German">
+</p>
+
 ## Why Bach
 
 - **One file to write.** A `bach.toml` with sensible defaults. Every mistake
   is one sentence naming the setting at fault. Nothing to learn first.
 - **Calm for your users.** One window, honest progress, readable errors with
-  "Try again", light and dark mode, and every row of choices is one big
-  click target.
+  a way forward, light and dark mode. Every row of choices is one big click
+  target, and the whole window works with the keyboard.
 - **Speaks their language.** 13 languages built in, following Windows'
   display language, or exactly the ones you list.
 - **Yours, all of it.** Logo, accent colour, icon, every text on every page,
@@ -58,7 +64,8 @@ That's a complete installer: `dist\Hello-Setup-1.0.0.exe`.
 - **Updates built in.** A newer setup over an install updates it in place,
   keeps the user's choices, and removes files the old version had and the new
   one doesn't. Files are unpacked first and swapped in all at once, so a
-  failed update leaves the old version exactly as it was.
+  failed update leaves the old version exactly as it was. With an update
+  feed, the installed app fetches new versions itself.
 - **Safe uninstalls.** Removes exactly what it installed. Deletes the user's
   data only when they tick the box, and only inside their profile.
 - **Runs everywhere.** Setup files need nothing installed first: no .NET, no
@@ -74,8 +81,12 @@ That's a complete installer: `dist\Hello-Setup-1.0.0.exe`.
 | **License** | An accept page before installing, per language if you like |
 | **Look** | Your logo (SVG or PNG), accent colour, light / dark / system theme, your icon on the setup file |
 | **Text** | Replace any text in the window, in one language or per language |
-| **Silent mode** | `Setup.exe /S` for IT tools, with `--dir`, `--with`, `--without`; quiet uninstall from Settings › Apps |
-| **Safety checks** | Free space checked before unpacking, one setup per app at a time, a running app detected before anything changes |
+| **Requirements** | WebView2, .NET, the Visual C++ runtime or any file or registry key, checked first, with a link to get what's missing |
+| **Self-updates** | `uninstall.exe --check-update` / `--update` from your app, https only and SHA-256 checked |
+| **Shortcuts** | More Start menu shortcuts, a Start menu folder of your own |
+| **Silent mode** | `Setup.exe /S` for IT tools, with `--dir`, `--with`, `--without`, `--log`; quiet uninstall from Settings › Apps |
+| **Safety checks** | Free space and the archive's SHA-256 checked before unpacking, one setup per app at a time, no downgrade by accident, "Close and continue" when the app is open |
+| **Distribution** | `bach winget` writes winget manifests; a GitHub Action builds in CI |
 | **Signing** | Sign with `signtool` like any program; the payload is covered by the signature |
 
 ## Install
@@ -94,6 +105,24 @@ irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
 curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh
 ```
 
+**Scoop**:
+
+```powershell
+scoop install https://raw.githubusercontent.com/usebach/bach/main/scoop/bach.json
+```
+
+**GitHub Actions** (any runner):
+
+```yaml
+- uses: usebach/bach@main
+  id: bach
+  with:
+    config: bach.toml
+- uses: actions/upload-artifact@v4
+  with:
+    path: ${{ steps.bach.outputs.setup }}
+```
+
 Or [download the zip](https://github.com/usebach/bach/releases) and keep
 `bach.exe` and `bach-setup.exe` in one folder. `bach doctor` tells you if
 anything is missing.
@@ -101,7 +130,7 @@ anything is missing.
 ## Quick start
 
 ```bash
-bach init        # writes a commented bach.toml
+bach init        # writes a bach.toml, filled in for Rust, Tauri, Electron and .NET
 bach check       # lists every file the installer will install
 bach preview     # opens the real window; installs nothing
 bach build       # writes dist\<name>-Setup-<version>.exe
@@ -159,6 +188,8 @@ data = ['%APPDATA%\Hello']
 | `bach preview` | Opens the installer window as it will look; nothing is installed. `--uninstall`, `--theme dark`, `--lang de`. |
 | `bach inspect FILE` | Shows what a setup file (or an installed `uninstall.exe`) carries. |
 | `bach doctor` | Checks that everything a build needs is in place. |
+| `bach feed FILE --url URL` | Writes the update feed for a (signed) setup file. |
+| `bach winget FILE --url URL` | Writes the manifests that list a setup file in winget. |
 
 ## For AI agents
 
@@ -202,11 +233,13 @@ crates/cli     bach-cli: the `bach` command
 crates/setup   bach-setup: the installer and uninstaller window (GPUI)
 examples/hello a tiny app and the bach.toml that packages it
 skills/bach    the agent skill
+schema/        the JSON schema editors use for bach.toml
 docs/          guides and the config reference
+scripts/       release, example, end-to-end test and asset scripts
 ```
 
 ## License
 
-[GPL-3.0](LICENSE). The installer window is built with
+[MIT](LICENSE): use Bach, and ship the installers it builds, for anything, commercial included. The installer window is built with
 [GPUI](https://www.gpui.rs/), [Inter](crates/setup/assets/fonts/LICENSE.txt)
 and [Tabler Icons](crates/setup/assets/icons/LICENSE).
