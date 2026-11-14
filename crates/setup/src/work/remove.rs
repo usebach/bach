@@ -39,6 +39,9 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
     let running_in_place = current.as_deref().is_some_and(|current| same_file(current, &uninstaller));
 
     report(0.1, &texts.get(Key::step_removing));
+    // An update cut short earlier is undone first, so what's on disk is
+    // what the manifest lists.
+    super::place::recover(dir);
     let program = manifest.executable_in(dir);
     remove_waiting(&program, texts, Key::error_still_open)?;
     for file in &manifest.files {
@@ -78,6 +81,8 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
         // exiting; give it a moment to let go of its file.
         remove_waiting(&uninstaller, texts, Key::error_busy)?;
     }
+    // What an update's rename of the running uninstaller left behind.
+    super::place::clear_leftovers(&uninstaller);
     // Only an empty folder goes: the user may have kept their own files there.
     let _ = fs::remove_dir(dir);
     system::notify_shell();

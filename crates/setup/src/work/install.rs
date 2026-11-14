@@ -55,6 +55,8 @@ pub fn install(plan: &InstallPlan, report: Report) -> Result<(), String> {
 
     report(0.02, &texts.get(Key::step_preparing));
     create_install_dir(dir, texts)?;
+    // An update that was cut short earlier is undone first.
+    place::recover(dir);
     let program = manifest.executable_in(dir);
     ensure_closed(&program, texts)?;
     let previous = previous_install(dir, manifest);
@@ -133,6 +135,7 @@ fn unpack(
     for file in &manifest.files {
         place::clear_leftovers(&paths::under(dir, &file.path));
     }
+    place::clear_leftovers(&dir.join(UNINSTALLER));
 
     let copying = texts.get(Key::step_copying);
     let total = needed.max(1);
@@ -166,7 +169,7 @@ fn unpack(
         remove_empty_parents(dir, wanted.iter().copied());
         return Err(write_error.unwrap_or_else(|| format!("{} {}", texts.get(Key::error_damaged), plain(&err))));
     }
-    transaction.commit().map_err(|failure| {
+    transaction.commit(&place::journal_path(dir)).map_err(|failure| {
         if is_in_use(&failure.error) {
             texts.with(Key::error_in_use, &[("path", &failure.target.display().to_string())])
         } else {
@@ -223,7 +226,9 @@ fn write_uninstaller(package: &Package, installed: &Manifest, dir: &Path, texts:
         let _ = fs::remove_file(&partial);
         return Err(fail(plain(&err)));
     }
-    fs::rename(&partial, &target).map_err(|err| {
+    // The uninstaller may be what is running this update, which Windows only
+    // lets be renamed, not overwritten.
+    place::replace_file(&partial, &target).map_err(|err| {
         let _ = fs::remove_file(&partial);
         if is_in_use(&err) {
             texts.with(Key::error_in_use, &[("path", &target.display().to_string())])
