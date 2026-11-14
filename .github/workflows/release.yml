@@ -16,6 +16,12 @@
 # all of them and their SHA-256. A second job then adds `bach` for macOS and
 # Linux to the same release. A dry run does everything up to the commit and
 # keeps the files as a workflow artifact.
+#
+# Once every download is on the release, a normal (not pre-, not draft)
+# release moves the tags `v<major>` and `v<major>.<minor>` to it, so
+# `uses: usebach/bach@v0` and `@v0.2` always get the newest release of their
+# line, and `bach`, which the action installs to match. Pre-releases never
+# move them.
 
 name: Release
 
@@ -289,3 +295,42 @@ jobs:
         run: |
           $name = "bach-${{ needs.release.outputs.version }}-windows-arm64"
           gh release upload "v${{ needs.release.outputs.version }}" "dist/$name.zip" "dist/$name.zip.sha256" --repo "${{ github.repository }}"
+
+  # The action installs the Bach version of the tag it is pinned with, so
+  # these two tags are what makes @v0 and @v0.2 follow new releases. They move
+  # last, once every download is on the release: a failed build elsewhere
+  # leaves them where they were.
+  tags:
+    name: Move the version tags
+    needs: [release, cli, windows-arm64]
+    if: ${{ !inputs.dry_run && !inputs.prerelease && !inputs.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+
+      - name: Move v<major> and v<major>.<minor>
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.release.outputs.version }}
+        run: |
+          case "$VERSION" in
+            [0-9]*.[0-9]*.[0-9]*-*) echo "No moving tags for $VERSION."; exit 0 ;;
+          esac
+          major="${VERSION%%.*}"
+          rest="${VERSION#*.}"
+          minor="${rest%%.*}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          basic=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          for tag in "v$major" "v$major.$minor"; do
+            git tag -f -a "$tag" -m "Bach $VERSION" "v$VERSION^{commit}"
+            # The token goes in a one-off header, never into .git/config or a URL.
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $basic" push --force origin "refs/tags/$tag"
+            echo "$tag now points at v$VERSION"
+          done
