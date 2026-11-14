@@ -10,7 +10,7 @@
 // version that already has a tag. Line endings and everything else in
 // Cargo.toml stay as they are.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const manifest = join(import.meta.dir, "..", "Cargo.toml");
@@ -57,5 +57,19 @@ else {
 const version = next.join(".");
 if (!dryRun) {
   writeFileSync(manifest, text.replace(section, `$1${version}$3`));
+  syncNpm(version);
 }
 console.log(version);
+
+// The npm package (npm/cli) is released with Bach, so it carries the same
+// version, and so do the native packages it depends on. Only the version
+// text changes; the rest of the file keeps its formatting.
+function syncNpm(version) {
+  const file = join(import.meta.dir, "..", "npm", "cli", "package.json");
+  if (!existsSync(file)) return;
+  const json = readFileSync(file, "utf8");
+  const updated = json
+    .replace(/^(\s*"version":\s*")[^"]*(")/m, `$1${version}$2`)
+    .replace(/("@usebach\/cli-[a-z0-9-]+":\s*")[^"]*(")/g, `$1${version}$2`);
+  writeFileSync(file, updated);
+}
