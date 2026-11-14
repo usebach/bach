@@ -15,7 +15,7 @@ use std::time::Duration;
 
 use bach_pack::i18n::Key;
 
-pub use install::{install, previous_install, InstallPlan};
+pub use install::{install, is_running, previous_install, recover_interrupted, InstallPlan};
 pub use preview::pretend;
 pub use remove::{remove, RemovePlan};
 

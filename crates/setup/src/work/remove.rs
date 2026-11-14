@@ -18,7 +18,7 @@ use bach_pack::paths;
 
 use super::{describe, failed, plain, remove_empty_parents, remove_file_if_present, remove_waiting, same_file, Report};
 use crate::package::Package;
-use crate::system::{self, env_path, host, integration};
+use crate::system::{self, env_path, host, integration, task};
 use crate::texts::Texts;
 
 pub struct RemovePlan {
@@ -104,6 +104,12 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
 fn undo_integration(manifest: &Manifest, dir: &Path, program: &Path, texts: &Texts) -> Result<(), String> {
     let fail = |err: anyhow::Error| format!("{} {}", texts.get(Key::error_system), plain(&err));
     integration::clear_autostart(manifest, program).map_err(fail)?;
+    if manifest.updates.is_some() {
+        // Best effort: a task that can't be deleted does nothing once the
+        // app is gone (it removes itself on its next round).
+        let _ = task::unregister(manifest);
+        crate::updates::forget_staged(&manifest.app.id);
+    }
     let added_to_path = match &manifest.chosen {
         Some(chosen) => chosen.add_to_path,
         None => manifest.install.add_to_path == Choice::Always,

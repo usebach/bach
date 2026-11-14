@@ -43,6 +43,7 @@ pub enum Toggle {
     StartMenu,
     StartWithWindows,
     AddToPath,
+    AutoUpdate,
     /// A component, by its index in the manifest.
     Component(usize),
     DeleteData,
@@ -142,6 +143,7 @@ impl SetupView {
             Toggle::StartMenu => choices.start_menu_shortcut,
             Toggle::StartWithWindows => choices.start_with_windows,
             Toggle::AddToPath => choices.add_to_path,
+            Toggle::AutoUpdate => choices.auto_update,
             Toggle::Component(index) => self
                 .package
                 .manifest
@@ -160,6 +162,7 @@ impl SetupView {
             Toggle::StartMenu => choices.start_menu_shortcut = on,
             Toggle::StartWithWindows => choices.start_with_windows = on,
             Toggle::AddToPath => choices.add_to_path = on,
+            Toggle::AutoUpdate => choices.auto_update = on,
             Toggle::Component(index) => {
                 if let Some(component) = self.package.manifest.components.get(index) {
                     choices.set(&self.package.manifest, &component.id.clone(), on);

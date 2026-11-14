@@ -20,7 +20,7 @@ pub mod extras;
 pub(crate) mod features;
 mod validate;
 
-pub use choices::{Choice, Choices, OPTION_AUTO_UPDATE, OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU};
+pub use choices::{auto_update_setting as choices_auto_update, Choice, Choices, OPTION_AUTO_UPDATE, OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU};
 pub use extras::{Check, FeedEntry, Requirement, Shortcut, Updates};
 pub use features::{Component, FileType, Protocol};
 pub use validate::MAX_LICENSE;

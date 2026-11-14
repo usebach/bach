@@ -16,6 +16,13 @@ pub fn default_path(app_id: &str) -> PathBuf {
     std::env::temp_dir().join(format!("{}-setup.log", app_id.replace(' ', "-")))
 }
 
+/// Where an update run's log goes (`--check-update`, `--update`, ...): not
+/// the install log's file, because the setup file an update starts writes
+/// that one while this log is still open.
+pub fn update_path(app_id: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("{}-update.log", app_id.replace(' ', "-")))
+}
+
 /// Starts the log at `path`, with a first line naming the run.
 pub fn start(path: &Path, first_line: &str) {
     let Ok(mut file) = File::create(path) else {

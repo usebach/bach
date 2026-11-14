@@ -1,7 +1,7 @@
 //! The first pages: the license, and the card of choices.
 
 use bach_pack::i18n::Key;
-use bach_pack::manifest::Manifest;
+use bach_pack::manifest::{choices_auto_update, Manifest};
 use gpui::{
     div, px, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Pixels, SharedString,
     StatefulInteractiveElement, Styled,
@@ -33,8 +33,14 @@ pub fn row_count(manifest: &Manifest, removing: bool) -> usize {
         return 1 + usize::from(!manifest.uninstall.data.is_empty());
     }
     let install = &manifest.install;
-    let offered = [install.desktop_shortcut, install.start_menu_shortcut, install.start_with_windows, install.add_to_path]
-        .iter()
+    let offered = [
+        install.desktop_shortcut,
+        install.start_menu_shortcut,
+        install.start_with_windows,
+        install.add_to_path,
+        choices_auto_update(manifest),
+    ]
+    .iter()
         .filter(|choice| choice.offered())
         .count();
     1 + manifest.components.len() + offered
@@ -217,6 +223,7 @@ impl SetupView {
             (install.start_menu_shortcut, Key::start_menu, Key::start_menu_description, "layout-grid-filled", Toggle::StartMenu),
             (install.start_with_windows, Key::start_with_windows, Key::start_with_windows_description, "bolt-filled", Toggle::StartWithWindows),
             (install.add_to_path, Key::add_to_path, Key::add_to_path_description, "terminal-2", Toggle::AddToPath),
+            (choices_auto_update(manifest), Key::auto_update, Key::auto_update_description, "refresh", Toggle::AutoUpdate),
         ];
         for (choice, title, description, icon, toggle) in builtin {
             if choice.offered() {

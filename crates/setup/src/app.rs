@@ -37,15 +37,22 @@ pub fn main() {
     };
     if let Ok(package) = &package {
         if !args.preview {
-            let path = args.log.clone().unwrap_or_else(|| crate::log::default_path(&package.manifest.app.id));
+            // An update run that starts a setup file must not share its log.
+            let path = args.log.clone().unwrap_or_else(|| {
+                if args.updating() {
+                    crate::log::update_path(&package.manifest.app.id)
+                } else {
+                    crate::log::default_path(&package.manifest.app.id)
+                }
+            });
             let app = &package.manifest.app;
             let run: Vec<String> = std::env::args().skip(1).collect();
             crate::log::start(&path, &format!("{} {} setup, Bach {}, run with {run:?}", app.name, app.version, bach_pack::VERSION));
         }
     }
-    if (args.update || args.check_update) && !args.preview {
+    if args.updating() && !args.preview {
         let code = match &package {
-            Ok(package) => crate::updater::run(&args, package),
+            Ok(package) => crate::updates::run(&args, package),
             Err(_) => 1,
         };
         std::process::exit(code);

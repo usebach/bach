@@ -35,7 +35,7 @@ mod theme;
 #[cfg(windows)]
 mod ui;
 #[cfg(windows)]
-mod updater;
+mod updates;
 #[cfg(windows)]
 mod view;
 #[cfg(windows)]
