@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use serde::Deserialize;
 
 use crate::manifest::extras::{is_https, is_valid_shortcut_name};
-use crate::manifest::{Check, FileEntry, Requirement, Shortcut, Updates};
+use crate::manifest::{Check, Choice, FileEntry, Requirement, Shortcut, Updates};
 use crate::paths;
 
 #[derive(Debug, Deserialize)]
@@ -32,9 +32,25 @@ pub struct ShortcutSection {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpdatesSection {
-    feed: String,
-    /// Where the setup file will be downloaded from; `{file}` is its name.
+    /// The update feed's https link. Not needed with `github`.
+    feed: Option<String>,
+    /// `owner/repo`: updates come from that repository's GitHub releases.
+    github: Option<String>,
+    /// Where the setup file will be downloaded from; `{file}` is its name
+    /// and `{version}` the app's version.
     download_url: Option<String>,
+    /// Keep the app up to date in the background: `true` (offered, ticked,
+    /// the default), `false` (offered, unticked), `"always"` or `"never"`.
+    auto: Option<toml::Value>,
+}
+
+/// What `[updates]` becomes: the manifest part, and the build-time part.
+pub struct UpdateSettings {
+    pub updates: Updates,
+    /// The download link template for the feed `bach build` writes.
+    pub download_url: Option<String>,
+    /// The GitHub repository, when releases are the home of the updates.
+    pub github: Option<String>,
 }
 
 pub fn requirements(sections: &[RequirementSection]) -> Result<Vec<Requirement>> {
@@ -108,21 +124,55 @@ pub fn shortcuts(sections: &[ShortcutSection], files: &[FileEntry]) -> Result<Ve
         .collect()
 }
 
-/// The feed, and the download URL template for the JSON `bach build` writes.
-pub fn updates(section: Option<&UpdatesSection>) -> Result<(Option<Updates>, Option<String>)> {
+/// The feed and the download link template for the JSON `bach build` writes.
+///
+/// With `github = "owner/repo"` both have a default that fits GitHub
+/// releases made by the Bach action: the feed is the latest release's
+/// `latest.json`, and each version's setup file is downloaded from that
+/// version's own tag (`v{version}`), so a link never changes what it serves.
+pub fn updates(section: Option<&UpdatesSection>) -> Result<Option<UpdateSettings>> {
     let Some(section) = section else {
-        return Ok((None, None));
+        return Ok(None);
     };
-    if !is_https(section.feed.trim()) {
-        bail!("updates.feed is \"{}\"; it must be an https link", section.feed);
-    }
-    let download = section.download_url.as_deref().map(str::trim);
-    if let Some(download) = download {
-        if !is_https(download) {
-            bail!("updates.download_url is \"{download}\"; it must be an https link");
+    let github = match section.github.as_deref().map(str::trim) {
+        None | Some("") => None,
+        Some(repo) if is_github_repo(repo) => Some(repo.to_string()),
+        Some(repo) => bail!("updates.github is \"{repo}\"; use the repository as owner/name, like \"usebach/bach\""),
+    };
+    let feed = match (section.feed.as_deref().map(str::trim), &github) {
+        (Some(feed), _) if !feed.is_empty() => {
+            if !is_https(feed) {
+                bail!("updates.feed is \"{feed}\"; it must be an https link");
+            }
+            feed.to_string()
         }
-    }
-    Ok((Some(Updates { feed: section.feed.trim().to_string() }), download.map(String::from)))
+        (_, Some(repo)) => format!("https://github.com/{repo}/releases/latest/download/latest.json"),
+        _ => bail!("[updates] needs github = \"owner/name\" or feed = \"https://…/latest.json\""),
+    };
+    let download = match (section.download_url.as_deref().map(str::trim), &github) {
+        (Some(download), _) if !download.is_empty() => {
+            if !is_https(download) {
+                bail!("updates.download_url is \"{download}\"; it must be an https link");
+            }
+            Some(download.to_string())
+        }
+        (_, Some(repo)) => Some(format!("https://github.com/{repo}/releases/download/v{{version}}/{{file}}")),
+        _ => None,
+    };
+    let auto = super::options::choice(section.auto.as_ref(), "updates.auto", Choice::On)?;
+    Ok(Some(UpdateSettings { updates: Updates { feed, auto }, download_url: download, github }))
+}
+
+/// `owner/name`, as GitHub allows them.
+fn is_github_repo(text: &str) -> bool {
+    let valid = |part: &str| {
+        !part.is_empty()
+            && part.len() <= 100
+            && part.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+            && part != "."
+            && part != ".."
+    };
+    text.split_once('/').is_some_and(|(owner, name)| valid(owner) && valid(name))
 }
 
 pub fn https(value: &Option<String>, key: &str) -> Result<Option<String>> {

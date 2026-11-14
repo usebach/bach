@@ -10,6 +10,7 @@ pub const OPTION_DESKTOP: &str = "desktop-shortcut";
 pub const OPTION_START_MENU: &str = "start-menu";
 pub const OPTION_AUTOSTART: &str = "autostart";
 pub const OPTION_PATH: &str = "path";
+pub const OPTION_AUTO_UPDATE: &str = "auto-update";
 
 /// How the installer treats one feature.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -93,6 +94,11 @@ impl<'de> Deserialize<'de> for Choice {
     }
 }
 
+/// How the installer treats automatic updates: `Never` without `[updates]`.
+pub fn auto_update_setting(manifest: &Manifest) -> Choice {
+    manifest.updates.as_ref().map_or(Choice::Never, |updates| updates.auto)
+}
+
 /// What the user picked on the install page (or on the command line).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Choices {
@@ -100,6 +106,10 @@ pub struct Choices {
     pub start_menu_shortcut: bool,
     pub start_with_windows: bool,
     pub add_to_path: bool,
+    /// Keep the app up to date in the background (`[updates] auto`). Older
+    /// uninstallers don't have it, which reads as not chosen.
+    #[serde(default)]
+    pub auto_update: bool,
     /// The optional components to install, by id.
     pub components: Vec<String>,
 }
@@ -113,6 +123,7 @@ impl Choices {
             start_menu_shortcut: install.start_menu_shortcut.starts_on(),
             start_with_windows: install.start_with_windows.starts_on(),
             add_to_path: install.add_to_path.starts_on(),
+            auto_update: auto_update_setting(manifest).starts_on(),
             components: manifest
                 .components
                 .iter()
@@ -144,6 +155,9 @@ impl Choices {
         if was_offered(old.add_to_path) {
             choices.add_to_path = before.add_to_path;
         }
+        if previous.updates.as_ref().is_some_and(|updates| was_offered(updates.auto)) {
+            choices.auto_update = before.auto_update;
+        }
         choices.components = manifest
             .components
             .iter()
@@ -168,6 +182,7 @@ impl Choices {
         self.start_menu_shortcut = install.start_menu_shortcut.decide(self.start_menu_shortcut);
         self.start_with_windows = install.start_with_windows.decide(self.start_with_windows);
         self.add_to_path = install.add_to_path.decide(self.add_to_path);
+        self.auto_update = auto_update_setting(manifest).decide(self.auto_update);
         self.components.retain(|id| manifest.components.iter().any(|component| &component.id == id));
         self.components.sort();
         self.components.dedup();
@@ -183,6 +198,7 @@ impl Choices {
             OPTION_START_MENU if install.start_menu_shortcut.offered() => &mut self.start_menu_shortcut,
             OPTION_AUTOSTART if install.start_with_windows.offered() => &mut self.start_with_windows,
             OPTION_PATH if install.add_to_path.offered() => &mut self.add_to_path,
+            OPTION_AUTO_UPDATE if auto_update_setting(manifest).offered() => &mut self.auto_update,
             _ => {
                 if !manifest.components.iter().any(|component| component.id == id) {
                     return false;
@@ -243,12 +259,46 @@ mod tests {
             start_menu_shortcut: false,
             start_with_windows: true,
             add_to_path: true,
+            auto_update: true,
             components: vec!["samples".into(), "ghost".into()],
         }
         .settle(&manifest);
         assert!(choices.start_menu_shortcut, "always stays on");
         assert!(!choices.add_to_path, "never stays off");
+        assert!(!choices.auto_update, "no [updates], no automatic updates");
         assert_eq!(choices.components, ["samples"]);
+    }
+
+    #[test]
+    fn automatic_updates_follow_the_updates_section() {
+        use super::super::Updates;
+        let mut manifest = sample();
+        assert!(!Choices::defaults(&manifest).auto_update, "no [updates], no automatic updates");
+        manifest.updates = Some(Updates { feed: "https://x/latest.json".into(), auto: Choice::On });
+        let mut choices = Choices::defaults(&manifest);
+        assert!(choices.auto_update, "offered and ticked");
+        assert!(choices.set(&manifest, OPTION_AUTO_UPDATE, false));
+        assert!(!choices.auto_update);
+        // An update remembers the answer...
+        let mut previous = manifest.clone();
+        previous.chosen = Some(choices);
+        assert!(!Choices::for_update(&manifest, &previous).auto_update);
+        // ...but a version that never offered it asks fresh, ticked.
+        previous.updates = Some(Updates { feed: "https://x/latest.json".into(), auto: Choice::Never });
+        assert!(Choices::for_update(&manifest, &previous).auto_update);
+        manifest.updates = Some(Updates { feed: "https://x/latest.json".into(), auto: Choice::Never });
+        assert!(!Choices { auto_update: true, ..Choices::default() }.settle(&manifest).auto_update);
+    }
+
+    #[test]
+    fn manifests_from_before_automatic_updates_still_read() {
+        let choices: Choices = serde_json::from_str(
+            r#"{"desktop_shortcut":true,"start_menu_shortcut":true,"start_with_windows":false,"add_to_path":false,"components":[]}"#,
+        )
+        .unwrap();
+        assert!(!choices.auto_update);
+        let updates: super::super::Updates = serde_json::from_str(r#"{"feed":"https://x/latest.json"}"#).unwrap();
+        assert_eq!(updates.auto, Choice::Never);
     }
 
     #[test]

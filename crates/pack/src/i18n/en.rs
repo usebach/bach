@@ -37,6 +37,8 @@ pub const EN: Strings = Strings {
     start_menu_description: "Find {name} in the Start menu.",
     start_with_windows: "Start with Windows",
     start_with_windows_description: "Open {name} automatically when you sign in.",
+    auto_update: "Automatic updates",
+    auto_update_description: "Install new versions of {name} in the background while it isn't running.",
     add_to_path: "Add to PATH",
     add_to_path_description: "Run {name} from any terminal.",
     delete_data: "Also delete my data",

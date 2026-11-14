@@ -118,25 +118,54 @@ pub struct Project {
     /// Things that build fine but probably aren't meant, one sentence each.
     pub warnings: Vec<String>,
     /// `updates.download_url`: where the setup file will live, for the
-    /// feed JSON `bach build` writes next to it.
+    /// feed JSON `bach build` writes next to it. `{version}` is already the
+    /// app's version; `{file}` is left for the builder to fill in.
     pub update_download_url: Option<String>,
+    /// `updates.github`: the repository whose releases hold the updates.
+    pub update_github: Option<String>,
+}
+
+/// Settings that win over `bach.toml`, for builds in CI.
+#[derive(Debug, Default, Clone)]
+pub struct Overrides {
+    /// Replaces `app.version`, so a release tag is the one place a version
+    /// is written down. A leading `v` is dropped.
+    pub version: Option<String>,
 }
 
 /// Reads, checks and gathers a `bach.toml`.
 pub fn load(path: &Path) -> Result<Project> {
+    load_with(path, &Overrides::default())
+}
+
+/// [`load`] with some settings replaced (see [`Overrides`]).
+pub fn load_with(path: &Path, overrides: &Overrides) -> Result<Project> {
     let text = std::fs::read_to_string(path).with_context(|| format!("couldn't read {}", path.display()))?;
     let root = path
         .parent()
         .map(|parent| if parent.as_os_str().is_empty() { Path::new(".") } else { parent })
         .unwrap_or(Path::new("."))
         .to_path_buf();
-    parse(&text, &root).with_context(|| format!("{} isn't valid", path.display()))
+    parse_with(&text, &root, overrides).with_context(|| format!("{} isn't valid", path.display()))
 }
 
 /// [`load`] for text already in hand, with paths relative to `root`.
 pub fn parse(text: &str, root: &Path) -> Result<Project> {
+    parse_with(text, root, &Overrides::default())
+}
+
+/// [`parse`] with some settings replaced (see [`Overrides`]).
+pub fn parse_with(text: &str, root: &Path, overrides: &Overrides) -> Result<Project> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-    let file: File = toml::from_str(text).map_err(|err| anyhow::anyhow!("{}", err.to_string().trim()))?;
+    let mut file: File = toml::from_str(text).map_err(|err| anyhow::anyhow!("{}", err.to_string().trim()))?;
+    if let Some(version) = &overrides.version {
+        let version = version.trim();
+        let version = match version.strip_prefix(['v', 'V']) {
+            Some(rest) if rest.starts_with(|c: char| c.is_ascii_digit()) => rest,
+            _ => version,
+        };
+        file.app.version = version.to_string();
+    }
     let mut warnings = Vec::new();
     let app = check_app(&file.app)?;
     let install = options::install(&file.installer, &app)?;
@@ -193,7 +222,22 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
     if file.app.website.is_none() && file.installer.website_button == Some(true) {
         bail!("installer.website_button is true, but app.website isn't set");
     }
-    let (updates, update_download_url) = extras::updates(file.updates.as_ref())?;
+    let update_settings = extras::updates(file.updates.as_ref())?;
+    if update_settings.is_some() && crate::version::compare(&app.version, &app.version).is_none() {
+        bail!(
+            "app.version is \"{}\"; an app that updates itself compares versions, so use numbers like 1.2.3 \
+             (a suffix like -beta.1 is fine)",
+            app.version
+        );
+    }
+    let (updates, update_download_url, update_github) = match update_settings {
+        Some(settings) => (
+            Some(settings.updates),
+            settings.download_url.map(|url| url.replace("{version}", &app.version)),
+            settings.github,
+        ),
+        None => (None, None, None),
+    };
     let feedback_url = extras::https(&file.uninstall.feedback_url, "uninstall.feedback_url")?;
 
     let output_template = file.installer.output.as_deref().unwrap_or(DEFAULT_OUTPUT);
@@ -270,6 +314,7 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
         compression,
         warnings,
         update_download_url,
+        update_github,
     })
 }
 

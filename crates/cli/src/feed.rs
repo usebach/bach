@@ -66,6 +66,7 @@ fn write(setup: &Path, url: &str, notes: Option<&str>, out: Option<&Path>) -> Re
         url: url.to_string(),
         sha256: format!("{:x}", Sha256::digest(&bytes)),
         notes: notes.map(String::from),
+        size: Some(bytes.len() as u64),
     };
     let target = match out {
         Some(out) => out.to_path_buf(),

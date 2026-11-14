@@ -263,6 +263,64 @@ feed = "http://insecure""#, "updates.feed"),
     std::fs::remove_dir_all(&dir).unwrap();
 }
 
+#[test]
+fn github_is_a_whole_update_setup() {
+    let dir = project_dir("github");
+    let project = parse(&format!("{MINIMAL}\n[updates]\ngithub = \"usebach/hello\""), &dir).unwrap();
+    let updates = project.manifest.updates.as_ref().unwrap();
+    assert_eq!(updates.feed, "https://github.com/usebach/hello/releases/latest/download/latest.json");
+    assert_eq!(updates.auto, Choice::On, "automatic updates are offered, ticked");
+    assert_eq!(
+        project.update_download_url.as_deref(),
+        Some("https://github.com/usebach/hello/releases/download/v1.2.3/{file}"),
+        "each version's file comes from its own tag"
+    );
+    assert_eq!(project.update_github.as_deref(), Some("usebach/hello"));
+
+    let own = format!(
+        "{MINIMAL}\n[updates]\ngithub = \"usebach/hello\"\nauto = \"never\"\nfeed = \"https://hello.example/latest.json\""
+    );
+    let project = parse(&own, &dir).unwrap();
+    let updates = project.manifest.updates.as_ref().unwrap();
+    assert_eq!(updates.feed, "https://hello.example/latest.json", "an explicit feed wins");
+    assert_eq!(updates.auto, Choice::Never);
+
+    for (extra, key) in [
+        ("[updates]\ngithub = \"just-a-name\"", "updates.github"),
+        ("[updates]\ngithub = \"a/b/c\"", "updates.github"),
+        ("[updates]\nauto = true", "[updates] needs"),
+        ("[updates]\nfeed = \"https://x/latest.json\"\nauto = \"sometimes\"", "updates.auto"),
+    ] {
+        let err = format!("{:#}", parse(&format!("{MINIMAL}\n{extra}"), &dir).unwrap_err());
+        assert!(err.contains(key), "expected {key} in: {err}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_release_tag_can_set_the_version() {
+    let dir = project_dir("override");
+    let overrides = Overrides { version: Some("v2.5.0".into()) };
+    let project = parse_with(MINIMAL, &dir, &overrides).unwrap();
+    assert_eq!(project.manifest.app.version, "2.5.0");
+    assert!(project.output.to_string_lossy().contains("2.5.0"), "the file name follows: {:?}", project.output);
+    // A version that only looks like a tag keeps its letters.
+    let odd = Overrides { version: Some("vNext".into()) };
+    assert_eq!(parse_with(MINIMAL, &dir, &odd).unwrap().manifest.app.version, "vNext");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn an_updating_app_needs_a_comparable_version() {
+    let dir = project_dir("comparable");
+    let text = MINIMAL.replace("1.2.3", "nightly") + "\n[updates]\nfeed = \"https://x/latest.json\"";
+    let err = format!("{:#}", parse(&text, &dir).unwrap_err());
+    assert!(err.contains("app.version"), "{err}");
+    // Without updates, any text is a fine version.
+    assert!(parse(&MINIMAL.replace("1.2.3", "nightly"), &dir).is_ok());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
 /// The editor schema (schema/bach.schema.json) knows every text and
 /// language, so autocompletion never misses one.
 #[test]
