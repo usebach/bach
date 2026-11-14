@@ -5,6 +5,7 @@
 //! naming the setting at fault, instead of producing a broken installer.
 //! Paths in the file are relative to the file itself.
 
+mod extras;
 mod gather;
 mod icon;
 mod options;
@@ -40,6 +41,11 @@ struct File {
     file_types: Vec<options::FileTypeSection>,
     #[serde(default)]
     text: BTreeMap<String, toml::Value>,
+    #[serde(default)]
+    requirements: Vec<extras::RequirementSection>,
+    #[serde(default)]
+    shortcuts: Vec<extras::ShortcutSection>,
+    updates: Option<extras::UpdatesSection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,6 +87,9 @@ struct InstallerSection {
     path_folder: Option<String>,
     change_folder: Option<bool>,
     open_button: Option<bool>,
+    start_menu_folder: Option<String>,
+    website_button: Option<bool>,
+    logo_height: Option<u16>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -89,6 +98,7 @@ struct UninstallSection {
     #[serde(default)]
     data: Vec<String>,
     data_description: Option<toml::Value>,
+    feedback_url: Option<String>,
 }
 
 /// A checked `bach.toml`, ready to build.
@@ -107,6 +117,9 @@ pub struct Project {
     pub compression: Compression,
     /// Things that build fine but probably aren't meant, one sentence each.
     pub warnings: Vec<String>,
+    /// `updates.download_url`: where the setup file will live, for the
+    /// feed JSON `bach build` writes next to it.
+    pub update_download_url: Option<String>,
 }
 
 /// Reads, checks and gathers a `bach.toml`.
@@ -168,6 +181,20 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
         }
     };
     let (logo_kind, logo, hide_logo) = logo(file.installer.logo.as_deref(), icon.as_deref(), root, &mut warnings)?;
+    let logo_aspect = match (logo_kind, &logo) {
+        (Some(LogoKind::Png), Some(png)) => extras::png_aspect(png).filter(|aspect| (aspect - 1.0).abs() > 0.02),
+        _ => None,
+    };
+    if let Some(height) = file.installer.logo_height {
+        if !(32..=96).contains(&height) {
+            bail!("installer.logo_height is {height}; use 32 to 96 (points)");
+        }
+    }
+    if file.app.website.is_none() && file.installer.website_button == Some(true) {
+        bail!("installer.website_button is true, but app.website isn't set");
+    }
+    let (updates, update_download_url) = extras::updates(file.updates.as_ref())?;
+    let feedback_url = extras::https(&file.uninstall.feedback_url, "uninstall.feedback_url")?;
 
     let output_template = file.installer.output.as_deref().unwrap_or(DEFAULT_OUTPUT);
     let output = root.join(fill_template(output_template, &app));
@@ -209,14 +236,18 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
         builder: crate::VERSION.into(),
         app,
         install,
-        uninstall: manifest::Uninstall { data: file.uninstall.data.clone(), data_description: None },
-        look: manifest::Look { theme, accent, logo: logo_kind, hide_logo },
+        uninstall: manifest::Uninstall { data: file.uninstall.data.clone(), data_description: None, feedback_url },
+        look: manifest::Look { theme, accent, logo: logo_kind, hide_logo, logo_height: file.installer.logo_height, logo_aspect },
         files,
         components,
         protocols: options::protocols(&file.protocols)?,
         file_types: options::file_types(&file.file_types)?,
         locale,
         chosen: None,
+        requirements: extras::requirements(&file.requirements)?,
+        shortcuts: Vec::new(),
+        updates,
+        archive_sha256: None,
     };
     if manifest.install.add_to_path != manifest::Choice::Never {
         if let Some(folder) = &manifest.install.path_folder {
@@ -226,8 +257,20 @@ pub fn parse(text: &str, root: &Path) -> Result<Project> {
             }
         }
     }
+    let mut manifest = manifest;
+    manifest.shortcuts = extras::shortcuts(&file.shortcuts, &manifest.files)?;
     manifest.validate()?;
-    Ok(Project { root: root.to_path_buf(), manifest, sources, icon, logo, output, compression, warnings })
+    Ok(Project {
+        root: root.to_path_buf(),
+        manifest,
+        sources,
+        icon,
+        logo,
+        output,
+        compression,
+        warnings,
+        update_download_url,
+    })
 }
 
 fn check_app(section: &AppSection) -> Result<manifest::App> {

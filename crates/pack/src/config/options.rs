@@ -61,6 +61,12 @@ pub(super) fn install(section: &InstallerSection, app: &manifest::App) -> Result
         path_folder,
         change_folder: section.change_folder.unwrap_or(true),
         open_button: section.open_button.unwrap_or(true),
+        start_menu_folder: match section.start_menu_folder.as_deref().map(str::trim) {
+            None | Some("") => None,
+            Some(folder) if crate::manifest::extras::is_valid_shortcut_name(folder) => Some(folder.to_string()),
+            Some(folder) => bail!("installer.start_menu_folder is \"{folder}\"; it names a folder, so leave out < > : \" / \\ | ? *"),
+        },
+        website_button: section.website_button.unwrap_or(false),
     })
 }
 

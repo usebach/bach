@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
 
+use super::extras::{is_https, is_valid_shortcut_name};
 use super::features::{is_valid_component_id, is_valid_extension, is_valid_scheme};
 use super::{Manifest, OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU, UNINSTALLER};
 use crate::{i18n, paths};
@@ -49,7 +50,45 @@ pub fn manifest(manifest: &Manifest) -> Result<()> {
     for folder in &manifest.uninstall.data {
         paths::check_data_folder(folder)?;
     }
+    extras(manifest)?;
     locale(manifest)
+}
+
+fn extras(manifest: &Manifest) -> Result<()> {
+    for requirement in &manifest.requirements {
+        if !is_https(&requirement.url) || requirement.name.trim().is_empty() {
+            bail!("the requirement \"{}\" has no name or no https link", requirement.name);
+        }
+    }
+    for shortcut in &manifest.shortcuts {
+        if !is_valid_shortcut_name(&shortcut.name) {
+            bail!("\"{}\" can't name a shortcut", shortcut.name);
+        }
+        if paths::normalize(&shortcut.target)? != shortcut.target {
+            bail!("the shortcut \"{}\" points at \"{}\", which isn't a canonical path", shortcut.name, shortcut.target);
+        }
+    }
+    if let Some(folder) = &manifest.install.start_menu_folder {
+        if !is_valid_shortcut_name(folder) {
+            bail!("\"{folder}\" can't name a Start menu folder");
+        }
+    }
+    if let Some(updates) = &manifest.updates {
+        if !is_https(&updates.feed) {
+            bail!("the update feed \"{}\" isn't an https link", updates.feed);
+        }
+    }
+    if let Some(url) = &manifest.uninstall.feedback_url {
+        if !is_https(url) {
+            bail!("the feedback link \"{url}\" isn't an https link");
+        }
+    }
+    if let Some(hash) = &manifest.archive_sha256 {
+        if hash.len() != 64 || !hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            bail!("the setup file's checksum is damaged");
+        }
+    }
+    Ok(())
 }
 
 fn files(manifest: &Manifest) -> Result<()> {

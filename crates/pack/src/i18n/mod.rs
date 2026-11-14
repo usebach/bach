@@ -82,6 +82,9 @@ texts! {
     error_uninstaller, error_shortcut, error_register, error_unregister, error_system,
     error_delete_data, error_not_found, error_open_failed,
     problem_title, problem_damaged,
+    downgrade_title, downgrade_subtitle, downgrade_button, close_app, error_close_app,
+    requirement_title, requirement_subtitle, requirement_button, step_downloading, error_download,
+    website, feedback,
 }
 
 /// A language the setup window speaks.
@@ -118,7 +121,7 @@ pub fn language(code: &str) -> Option<&'static Language> {
 /// Placeholders every text may use.
 pub const COMMON_PLACEHOLDERS: &[&str] = &["name", "version", "publisher"];
 /// Placeholders some texts fill in; harmless (left as is) elsewhere.
-pub const OTHER_PLACEHOLDERS: &[&str] = &["old_version", "path", "size", "free", "error", "description"];
+pub const OTHER_PLACEHOLDERS: &[&str] = &["old_version", "path", "size", "free", "error", "description", "requirement"];
 
 /// Picks the language to show: the first of the user's `preferred`
 /// languages (like `de-DE`, most preferred first) that the app `offers`,
