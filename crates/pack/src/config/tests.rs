@@ -298,6 +298,20 @@ fn github_is_a_whole_update_setup() {
 }
 
 #[test]
+fn github_downloads_are_named_the_way_github_serves_them() {
+    let dir = project_dir("asset");
+    let text = MINIMAL.replace("name = \"Hello\"", "name = \"Hello World\"\nid = \"Hello\"");
+    let project = parse(&format!("{text}\n[updates]\ngithub = \"me/hello\""), &dir).unwrap();
+    let file = project.output.file_name().unwrap().to_string_lossy().into_owned();
+    assert_eq!(file, "Hello-World-Setup-1.2.3.exe");
+    // Without GitHub the name is left as it is.
+    let file = parse(&text, &dir).unwrap().output.file_name().unwrap().to_string_lossy().into_owned();
+    assert_eq!(file, "Hello World-Setup-1.2.3.exe");
+    assert_eq!(github_asset_name("Ünï cøde (1).exe"), "-n--c-de--1-.exe");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
 fn a_release_tag_can_set_the_version() {
     let dir = project_dir("override");
     let overrides = Overrides { version: Some("v2.5.0".into()) };

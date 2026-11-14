@@ -241,9 +241,18 @@ pub fn parse_with(text: &str, root: &Path, overrides: &Overrides) -> Result<Proj
     let feedback_url = extras::https(&file.uninstall.feedback_url, "uninstall.feedback_url")?;
 
     let output_template = file.installer.output.as_deref().unwrap_or(DEFAULT_OUTPUT);
-    let output = root.join(fill_template(output_template, &app));
+    let mut output = root.join(fill_template(output_template, &app));
     if !has_extension(&output, "exe") {
         bail!("installer.output must end in .exe; it's \"{output_template}\"");
+    }
+    // GitHub renames an uploaded file that has spaces or odd characters in its
+    // name, which would break the download link in the update feed. With
+    // GitHub as the home of the updates, the setup file is named the way it
+    // will be downloaded.
+    if update_github.is_some() {
+        if let Some(name) = output.file_name().map(|name| name.to_string_lossy().into_owned()) {
+            output.set_file_name(github_asset_name(&name));
+        }
     }
 
     let source_dir = root.join(&file.files.source);
@@ -316,6 +325,12 @@ pub fn parse_with(text: &str, root: &Path, overrides: &Overrides) -> Result<Proj
         update_download_url,
         update_github,
     })
+}
+
+/// A file name as GitHub keeps it for a release download: letters, digits,
+/// `.`, `-` and `_`; anything else becomes `-`.
+pub fn github_asset_name(name: &str) -> String {
+    name.chars().map(|c| if c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_') { c } else { '-' }).collect()
 }
 
 fn check_app(section: &AppSection) -> Result<manifest::App> {

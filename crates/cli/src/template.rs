@@ -46,10 +46,7 @@ source = "@SOURCE@"
 # open_button = true          # offer "Open @NAME@" at the end?
 # start_menu_folder = "@PUBLISHER@"  # put the shortcuts in a folder
 
-@REQUIREMENTS@# Updates: the installed app runs `uninstall.exe --update` to fetch them.
-# [updates]
-# feed = "https://example.com/@SCHEME@/latest.json"
-# download_url = "https://example.com/@SCHEME@/{file}"
+@REQUIREMENTS@@UPDATES@
 
 # Optional parts the user can leave out:
 # [[components]]
@@ -80,6 +77,25 @@ source = "@SOURCE@"
 # data_description = "Your settings and saved files."
 "##;
 
+/// What `[updates]` starts as in a checkout hosted on GitHub: on, so the
+/// app keeps itself up to date from the releases the Bach action publishes.
+const UPDATES_ON: &str = "# Updates: the installed app keeps itself up to date from this repository's GitHub
+# releases (the Bach action in your workflow publishes them). Delete this
+# section for an app that doesn't update itself.
+[updates]
+";
+const UPDATES_OPTIONS: &str = "# auto = true        # offer \"Automatic updates\" (false: unticked, \"always\", \"never\")
+";
+/// Without a GitHub remote there is nothing to guess: shown, not enabled.
+const UPDATES_OFF: &str = "# Updates: the installed app can keep itself up to date. With GitHub releases:
+# [updates]
+# github = \"owner/repo\"";
+const UPDATES_OPTIONS_OFF: &str = "# or with a feed of your own:
+# feed = \"https://example.com/latest.json\"
+# download_url = \"https://example.com/{file}\"
+# auto = true        # offer \"Automatic updates\" (false: unticked, \"always\", \"never\")
+";
+
 pub fn init(dir: &Path) -> Result<()> {
     let path = dir.join("bach.toml");
     if path.exists() {
@@ -87,7 +103,7 @@ pub fn init(dir: &Path) -> Result<()> {
     }
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", dir.display()))?;
     let detected = crate::detect::detect(dir);
-    let text = fill(detected.as_ref(), &guess_name(dir));
+    let text = fill(detected.as_ref(), &guess_name(dir), dir);
     std::fs::write(&path, text).with_context(|| format!("couldn't write {}", path.display()))?;
     match &detected {
         Some(found) => println!(
@@ -102,7 +118,7 @@ pub fn init(dir: &Path) -> Result<()> {
 
 /// The template with what the project says about itself, or placeholders
 /// from the folder's name.
-fn fill(found: Option<&Detected>, folder_name: &str) -> String {
+fn fill(found: Option<&Detected>, folder_name: &str, dir: &Path) -> String {
     let empty = Detected::default();
     let found = found.unwrap_or(&empty);
     let name = found.name.clone().unwrap_or_else(|| folder_name.to_string());
@@ -114,6 +130,10 @@ fn fill(found: Option<&Detected>, folder_name: &str) -> String {
         format!("exclude = [{}]", patterns.join(", "))
     };
     let requirements = found.requirements.clone().map(|block| format!("{block}\n")).unwrap_or_default();
+    let updates = match crate::github::repository(dir) {
+        Some(repo) => format!("{UPDATES_ON}github = \"{repo}\"\n{UPDATES_OPTIONS}"),
+        None => format!("{UPDATES_OFF}\n{UPDATES_OPTIONS_OFF}"),
+    };
     TEMPLATE
         .replace("@NAME@", &name)
         .replace("@VERSION@", found.version.as_deref().unwrap_or("1.0.0"))
@@ -122,6 +142,7 @@ fn fill(found: Option<&Detected>, folder_name: &str) -> String {
         .replace("@SOURCE@", found.source.as_deref().unwrap_or("build"))
         .replace("@EXCLUDE@", &exclude)
         .replace("@REQUIREMENTS@", &requirements)
+        .replace("@UPDATES@", &updates)
         .replace("@SCHEME@", &scheme)
 }
 
@@ -196,6 +217,23 @@ mod tests {
         assert_eq!(project.manifest.app.name, "Clip Board");
         assert_eq!(project.manifest.app.version, "0.4.0");
         assert_eq!(project.manifest.files.len(), 1, "build leftovers are excluded");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// In a GitHub checkout, `bach init` turns updates on for that repository.
+    #[test]
+    fn a_github_checkout_gets_updates() {
+        let dir = std::env::temp_dir().join(format!("bach-init-github-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("build")).unwrap();
+        std::fs::create_dir_all(dir.join(".git")).unwrap();
+        std::fs::write(dir.join(".git/config"), "[remote \"origin\"]\n\turl = git@github.com:me/clip.git\n").unwrap();
+        init(&dir).unwrap();
+        let exe = executable_name(&guess_name(&dir));
+        std::fs::write(dir.join("build").join(format!("{exe}.exe")), b"MZ").unwrap();
+        let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();
+        assert_eq!(project.update_github.as_deref(), Some("me/clip"));
+        assert!(project.manifest.updates.is_some());
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

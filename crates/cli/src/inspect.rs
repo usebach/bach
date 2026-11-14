@@ -31,6 +31,7 @@ pub fn inspect(path: &Path) -> Result<()> {
             (chosen.start_menu_shortcut, "Start menu"),
             (chosen.start_with_windows, "start with Windows"),
             (chosen.add_to_path, "PATH"),
+            (chosen.auto_update, "automatic updates"),
         ] {
             if on {
                 picked.push(name.to_string());
@@ -65,6 +66,12 @@ pub fn details(manifest: &Manifest) {
             Choice::On => options.push(format!("{name} (offered, ticked)")),
             Choice::Always => options.push(name.to_string()),
         }
+    }
+    match bach_pack::manifest::choices_auto_update(manifest) {
+        Choice::Never => {}
+        Choice::Off => options.push("automatic updates (offered)".to_string()),
+        Choice::On => options.push("automatic updates (offered, ticked)".to_string()),
+        Choice::Always => options.push("automatic updates".to_string()),
     }
     field("Options", options.join(", "));
     for component in &manifest.components {
