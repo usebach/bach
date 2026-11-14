@@ -26,7 +26,11 @@ esac
 if [ -n "${BACH_VERSION:-}" ]; then
   tag="v${BACH_VERSION#v}"
 else
-  tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+  tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+  # "latest" skips pre-releases; while there are only those, take the newest.
+  if [ -z "$tag" ]; then
+    tag=$(curl -fsSL "https://api.github.com/repos/$repo/releases?per_page=1" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n 1)
+  fi
 fi
 [ -n "$tag" ] || { echo "Couldn't find the latest Bach release; check your connection." >&2; exit 1; }
 
@@ -51,7 +55,14 @@ fi
 
 tar -xzf "$work/$name.tar.gz" -C "$work"
 mkdir -p "$dir"
+# A `bach` this script didn't put there belongs to something else: keep it.
+mark="$dir/.bach-cli"
+if [ -e "$dir/bach" ] && [ ! -e "$mark" ]; then
+  echo "$dir/bach already exists and isn't from this script, so nothing was installed. Set BACH_INSTALL_DIR to another folder." >&2
+  exit 1
+fi
 install -m 755 "$work/$name/bach" "$dir/bach"
+echo "Installed by https://github.com/usebach/bach/blob/main/install.sh" > "$mark"
 echo "Installed $("$dir/bach" --version) to $dir/bach"
 case ":$PATH:" in
   *":$dir:"*) ;;
