@@ -2,6 +2,33 @@
 
 What changed in each release of Bach, newest first. The release workflow writes this from the commit history.
 
+## 0.1.1 (2026-11-14)
+
+### New
+
+- Add bach feed, bach winget and stack detection to bach init ([f90e4f9](https://github.com/usebach/bach/commit/f90e4f9fe611f88cb6f1341c5f1dfc36be905707))
+- Add keyboard use, requirement checks, self-updates and logs to setup ([ebd1f8a](https://github.com/usebach/bach/commit/ebd1f8a2e0e536606ca4f136b67025e27d2889dc))
+- Add requirements, extra shortcuts and update feeds to bach.toml ([f74dfe4](https://github.com/usebach/bach/commit/f74dfe4b7e05dc39f66d6335593517151df55f55))
+- Add LICENSE file ([e5cfc10](https://github.com/usebach/bach/commit/e5cfc10cb9c8c43b8915a6f29123833e0b870e2b))
+
+### Fixes
+
+- Fix error messages capitalising file and setting names ([b22e285](https://github.com/usebach/bach/commit/b22e285d6a40fee68bace17f0c02ee9dcb95e0f8))
+- Fix bach build failing on every app.icon ([23309ff](https://github.com/usebach/bach/commit/23309ffec85510ff17e5cb3c13765fe7dec74f8f))
+- Fix install.ps1 replacing another app called Bach ([d0cfa55](https://github.com/usebach/bach/commit/d0cfa550f29a48872280984f1e4f64f3e1c81bd5))
+
+### Improvements
+
+- Rewrite the README around what Bach is, why and how to start ([586e3ba](https://github.com/usebach/bach/commit/586e3bae446cd5fddfa778a433e1830f27f9ecdf))
+- Teach the agent skill about requirements, updates and winget ([bbd89be](https://github.com/usebach/bach/commit/bbd89be4264e6a625960e88c8356a7b48cfaeed7))
+- Document the new settings and commands, with screenshots ([c844ca5](https://github.com/usebach/bach/commit/c844ca52e9741bb19ad6a32e2bb585176a061a6d))
+- Publish Windows ARM64 builds, a Scoop manifest and a GitHub Action ([f9ee960](https://github.com/usebach/bach/commit/f9ee9605060235b088ea29384658eb243eaa9fe7))
+- Test real installs, updates and removals in CI ([ff368e0](https://github.com/usebach/bach/commit/ff368e03663204cd73970bc1595df85adf6f7eaf))
+- Install apps with thousands of files twice as fast ([d13cc33](https://github.com/usebach/bach/commit/d13cc3394d2f0f5e5e08a9763fb4c469a5d1e34e))
+- Switch the license metadata to MIT ([aa36528](https://github.com/usebach/bach/commit/aa365288978673648a74b6cdc35e070601415d59))
+
+All changes: [v0.1.0...v0.1.1](https://github.com/usebach/bach/compare/v0.1.0...v0.1.1)
+
 ## 0.1.0 (2026-11-13)
 
 ### New
