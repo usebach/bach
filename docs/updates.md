@@ -21,8 +21,11 @@ Add one line to `bach.toml`:
 github = "owner/repo"
 ```
 
-Then publish with the Bach action. This workflow builds on every pushed tag
-like `v1.4.0`:
+Then publish. The quickest way is the one-click release workflow that
+`bach init` or `bach workflow` writes into your repository: it raises the
+version everywhere, builds your app and publishes the release (see
+[releasing](releasing.md)). To write the workflow yourself, use the Bach
+action. This one builds on every pushed tag like `v1.4.0`:
 
 ```yaml
 on:

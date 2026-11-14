@@ -33,12 +33,20 @@ without writing installer logic.
 > has moved on since. Requirement
 > checks, self-updates from the app, extra shortcuts, logs, the archive
 > checksum, "close and continue", keyboard navigation, `bach feed`,
-> `bach winget` and project detection in `bach init` are on `main` and ship in
-> the next release; [build from source](#build-from-source) to use them today.
+> `bach winget`, project detection in `bach init`, `bach version`,
+> `bach workflow` and the `@usebach/cli` package on npm are on `main` and ship
+> in the next release; [build from source](#build-from-source) to use them today.
 
 ## Quick start
 
-Install the `bach` command. No Rust needed:
+Install the `bach` command. No Rust needed, no administrator rights:
+
+```bash
+# Windows, macOS and Linux (Node.js 18 or newer)
+npm install --global @usebach/cli
+```
+
+No Node.js? One line does it too, and it works the same in CI:
 
 ```powershell
 # Windows (PowerShell): installs to %LOCALAPPDATA%\Programs\bach-cli and adds it to PATH
@@ -53,11 +61,14 @@ curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh
 Then, in your project:
 
 ```bash
-bach init      # writes a commented bach.toml
+bach init      # writes a commented bach.toml (and, on GitHub, a release workflow)
 bach check     # validates it and lists every file the installer will carry
 bach preview   # opens the real window; nothing is installed
 bach build     # writes the setup file
 ```
+
+In a GitHub repository, `bach init` also adds a one-click release: commit it,
+then press **Actions › Release › Run workflow**. See [releasing](docs/releasing.md).
 
 A complete config, for a Rust app:
 
@@ -126,7 +137,9 @@ Every setting is in the [config reference](docs/config.md).
 
 | Command | What it does |
 | --- | --- |
-| `bach init` | Writes a starter `bach.toml`; fills it in for Rust, Tauri, Electron and .NET projects. |
+| `bach init` | Writes a starter `bach.toml`; fills it in for Rust, Tauri, Electron and .NET projects. In a GitHub checkout it also writes the release workflow (`--no-workflow` skips that). |
+| `bach workflow` | Adds, or updates, the one-click release workflow in `.github/workflows/bach-release.yml`. See [releasing](docs/releasing.md). |
+| `bach version [patch\|minor\|major\|X.Y.Z]` | Lists the version in every file that has one, or raises it in all of them at once: `bach.toml`, `package.json` and its lock file, `Cargo.toml` and `Cargo.lock`, Tauri's config, `.csproj`. |
 | `bach check` | Validates the config and lists every file and option, with warnings. |
 | `bach preview` | Opens the window without installing; `--uninstall`, `--theme dark`, `--lang de`. |
 | `bach build` | Writes the setup file; `--fast` compresses less, `--out` picks the path, `--app-version v1.4.0` sets the version (from a release tag). |
@@ -137,6 +150,15 @@ Every setting is in the [config reference](docs/config.md).
 
 ## Other ways to install
 
+- **npm** (`npm install --global @usebach/cli`, or `--save-dev` for one
+  project and `npx bach`): update with `npm update --global @usebach/cli`,
+  remove with `npm uninstall --global @usebach/cli`.
+- **For every user:** the install scripts install per user and never ask for
+  administrator rights. Ask for a system-wide install with
+  `$env:BACH_SCOPE = 'system'` before the PowerShell line (to
+  `%ProgramFiles%\bach-cli`; Windows asks for permission once, and declining
+  installs it for you alone) or `sh -s -- --system` after the shell one (to
+  `/usr/local/bin`, using `sudo` for that copy only).
 - **Scoop:** `scoop install https://raw.githubusercontent.com/usebach/bach/main/scoop/bach.json`
 - **GitHub Actions**, on any runner. Build and publish a release for every
   pushed tag like `v1.4.0` (the tag is the app's version; installed apps
