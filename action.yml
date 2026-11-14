@@ -39,7 +39,7 @@
 # Works on Windows, macOS and Linux runners; outside Windows the setup file
 # keeps Bach's icon (build on windows-latest to apply app.icon).
 
-name: Bach
+name: Bach Installer
 description: Build a modern Windows installer (Setup.exe) from a bach.toml, and publish it as a release your installed app updates from.
 author: Bach
 branding:
