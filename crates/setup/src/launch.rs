@@ -40,6 +40,14 @@ pub struct Args {
     pub with: Vec<String>,
     pub without: Vec<String>,
     pub delete_data: bool,
+    /// Lets a silent run install an older version over a newer one.
+    pub allow_downgrade: bool,
+    /// `--log FILE`: where this run's log goes.
+    pub log: Option<PathBuf>,
+    /// `--update`: look for a newer version and install it.
+    pub update: bool,
+    /// `--check-update`: only say whether there is one (exit code 10).
+    pub check_update: bool,
     pub theme: Option<Theme>,
     pub lang: Option<String>,
 }
@@ -72,6 +80,10 @@ impl Args {
             with: list("--with"),
             without: list("--without"),
             delete_data: has(&["--delete-data"]),
+            allow_downgrade: has(&["--allow-downgrade"]),
+            log: value_of("--log").map(PathBuf::from),
+            update: has(&["--update"]),
+            check_update: has(&["--check-update"]),
             theme: value_of("--theme").and_then(|value| Theme::parse(&value)),
             lang: value_of("--lang"),
         }

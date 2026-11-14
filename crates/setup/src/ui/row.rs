@@ -42,6 +42,7 @@ pub struct Row {
     control: Option<AnyElement>,
     divided: bool,
     last: bool,
+    focused: bool,
     click: Option<(ElementId, Handler)>,
 }
 
@@ -54,6 +55,7 @@ impl Row {
             control: None,
             divided: false,
             last: false,
+            focused: false,
             click: None,
         }
     }
@@ -84,6 +86,12 @@ impl Row {
     /// The card's last row, whose hover wash follows the bottom corners.
     pub fn last(mut self, last: bool) -> Self {
         self.last = last;
+        self
+    }
+
+    /// Draws the keyboard focus ring (only after Tab, like `:focus-visible`).
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.focused = focused;
         self
     }
 
@@ -140,7 +148,19 @@ impl RenderOnce for Row {
                     .text_color(theme.muted_foreground)
                     .child(text)
             }));
+        let ring = self.focused.then(|| {
+            div()
+                .absolute()
+                .top(px(2.))
+                .left(px(2.))
+                .right(px(2.))
+                .bottom(px(2.))
+                .rounded(px(9.))
+                .border_2()
+                .border_color(theme.ring)
+        });
         let mut row = div()
+            .relative()
             .p(px(16.))
             .flex()
             .items_center()
@@ -148,7 +168,8 @@ impl RenderOnce for Row {
             .bg(mix(clear(theme.hover), theme.hover, wash))
             .children(icon)
             .child(copy)
-            .children(self.control.map(|control| div().flex_none().child(control)));
+            .children(self.control.map(|control| div().flex_none().child(control)))
+            .children(ring);
         // The card's border is 1px, so the wash sits inside a 1px smaller radius.
         let inner = RADIUS - px(1.);
         let corners = &mut row.style().corner_radii;

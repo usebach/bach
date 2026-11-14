@@ -60,6 +60,7 @@ pub fn install(plan: &InstallPlan, report: Report) -> Result<(), String> {
     let previous = previous_install(dir, manifest);
     let needed = manifest.selected_size(&choices);
     check_free_space(dir, needed, texts)?;
+    verify_archive(package, layout.archive, texts)?;
 
     unpack(plan, &choices, layout.archive, needed, report)?;
 
@@ -73,7 +74,7 @@ pub fn install(plan: &InstallPlan, report: Report) -> Result<(), String> {
     write_uninstaller(package, &installed, dir, texts)?;
 
     report(0.92, &texts.get(Key::step_shortcuts));
-    shortcuts(manifest, &choices, &program, texts)?;
+    shortcuts(manifest, previous.as_ref(), &choices, dir, &program, texts)?;
     integrate(manifest, previous.as_ref(), &choices, dir, &program, texts)?;
 
     report(0.97, &texts.get(Key::step_registering));
@@ -233,9 +234,37 @@ fn write_uninstaller(package: &Package, installed: &Manifest, dir: &Path, texts:
 }
 
 /// Adds or removes the Start menu and desktop shortcuts to match the
-/// choices (an update may have unticked one).
-fn shortcuts(manifest: &Manifest, choices: &Choices, program: &Path, texts: &Texts) -> Result<(), String> {
+/// choices (an update may have unticked one), and the extra Start menu
+/// shortcuts, which follow the Start menu choice.
+fn shortcuts(
+    manifest: &Manifest,
+    previous: Option<&Manifest>,
+    choices: &Choices,
+    dir: &Path,
+    program: &Path,
+    texts: &Texts,
+) -> Result<(), String> {
     let description = manifest.app.description.clone().unwrap_or_else(|| manifest.app.name.clone());
+    let failed = |link: &Path, err: anyhow::Error| {
+        format!("{} {}", texts.with(Key::error_shortcut, &[("path", &link.display().to_string())]), plain(&err))
+    };
+    // Shortcuts the last version made and this one doesn't (renamed, or a
+    // folder that changed) go first.
+    if let Some(previous) = previous {
+        let keep: Vec<PathBuf> = system::extra_shortcuts(manifest).into_iter().map(|(link, _)| link).collect();
+        let mut old: Vec<PathBuf> = system::extra_shortcuts(previous).into_iter().map(|(link, _)| link).collect();
+        old.extend(system::start_menu_shortcut(previous).ok());
+        for link in old.iter().filter(|link| !keep.contains(link)) {
+            if system::start_menu_shortcut(manifest).ok().as_ref() != Some(link) {
+                let _ = remove_file_if_present(link);
+            }
+        }
+        if previous.install.start_menu_folder != manifest.install.start_menu_folder {
+            if let Ok(folder) = system::start_menu_folder(previous) {
+                let _ = fs::remove_dir(folder);
+            }
+        }
+    }
     let wanted = [
         (system::start_menu_shortcut(manifest), choices.start_menu_shortcut),
         (system::desktop_shortcut(manifest), choices.desktop_shortcut),
@@ -245,12 +274,45 @@ fn shortcuts(manifest: &Manifest, choices: &Choices, program: &Path, texts: &Tex
             continue;
         };
         if wanted {
-            system::create_shortcut(&link, program, &description).map_err(|err| {
-                format!("{} {}", texts.with(Key::error_shortcut, &[("path", &link.display().to_string())]), plain(&err))
-            })?;
+            system::create_shortcut(&link, program, &description).map_err(|err| failed(&link, err))?;
         } else {
             let _ = remove_file_if_present(&link);
         }
+    }
+    for (link, shortcut) in system::extra_shortcuts(manifest) {
+        let target = paths::under(dir, &shortcut.target);
+        let installed = manifest.files.iter().any(|file| file.path == shortcut.target && choices.installs(file));
+        if choices.start_menu_shortcut && installed {
+            let description = shortcut.description.clone().unwrap_or_else(|| shortcut.name.clone());
+            system::create_shortcut_with(&link, &target, shortcut.arguments.as_deref(), &description)
+                .map_err(|err| failed(&link, err))?;
+        } else {
+            let _ = remove_file_if_present(&link);
+        }
+    }
+    if !choices.start_menu_shortcut && manifest.install.start_menu_folder.is_some() {
+        if let Ok(folder) = system::start_menu_folder(manifest) {
+            let _ = fs::remove_dir(folder);
+        }
+    }
+    Ok(())
+}
+
+/// Checks the archive against the SHA-256 the builder recorded, before a
+/// single file is unpacked, so a damaged download fails right away.
+fn verify_archive(package: &Package, section: container::Section, texts: &Texts) -> Result<(), String> {
+    use sha2::{Digest, Sha256};
+    let Some(expected) = &package.manifest.archive_sha256 else {
+        return Ok(());
+    };
+    let damaged = || texts.get(Key::error_damaged);
+    let mut file = File::open(&package.exe).map_err(|_| texts.get(Key::error_read_setup))?;
+    file.seek(SeekFrom::Start(section.offset)).map_err(|_| texts.get(Key::error_read_setup))?;
+    let mut hasher = Sha256::new();
+    let mut reader = file.take(section.len);
+    std::io::copy(&mut reader, &mut hasher).map_err(|_| texts.get(Key::error_read_setup))?;
+    if reader.limit() != 0 || format!("{:x}", hasher.finalize()) != expected.to_ascii_lowercase() {
+        return Err(damaged());
     }
     Ok(())
 }
