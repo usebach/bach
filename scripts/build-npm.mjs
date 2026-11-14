@@ -75,9 +75,23 @@ for (const key of platforms) {
     ...base,
     os: [os],
     cpu: [cpu],
-    files: ["bin", "LICENSE"],
+    files: ["bin", "README.md", "LICENSE"],
   };
   writeFileSync(join(dir, "package.json"), `${JSON.stringify(native, null, 2)}\n`);
+  const readme = [
+    `# @usebach/cli-${key}`,
+    "",
+    `The bach program for ${key}. **You don't install this package yourself:** it is pulled in by`,
+    "[@usebach/cli](https://www.npmjs.com/package/@usebach/cli), which picks the one that matches your computer.",
+    "",
+    "```bash",
+    "npm install --global @usebach/cli",
+    "```",
+    "",
+    "Docs: https://bach.mintlify.app/docs - Source: https://github.com/usebach/bach",
+    "",
+  ].join("\n");
+  writeFileSync(join(dir, "README.md"), readme);
 }
 
 // The package people install, pinned to exactly these native packages.

@@ -154,5 +154,6 @@ $sudo install -m 644 "$work/mark" "$mark"
 echo "Installed $("$dir/bach" --version) to $dir/bach"
 case ":$PATH:" in
   *":$dir:"*) ;;
-  *) echo "Add $dir to your PATH to run bach from anywhere." ;;
+  *) echo "To run bach from anywhere, add $dir to your PATH:"
+     echo "  export PATH=\"$dir:\$PATH\"   # put this line in ~/.profile, ~/.zshrc or ~/.bashrc" ;;
 esac
