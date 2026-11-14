@@ -14,8 +14,9 @@
 # macOS and Linux CI for example) and the example installer, commits
 # "Release vX.Y.Z" to main with a tag, and publishes a GitHub release with
 # all of them and their SHA-256. A second job then adds `bach` for macOS and
-# Linux to the same release. A dry run does everything up to the commit and
-# keeps the files as a workflow artifact.
+# Linux to the same release, and once every program is there the npm job
+# publishes @usebach/cli (see below). A dry run does everything up to the
+# commit and keeps the files as a workflow artifact.
 #
 # Once every download is on the release, a normal (not pre-, not draft)
 # release moves the tags `v<major>` and `v<major>.<minor>` to it, so
@@ -165,7 +166,7 @@ jobs:
           $version = "${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock CHANGELOG.md scoop/bach.json
+          git add Cargo.toml Cargo.lock CHANGELOG.md scoop/bach.json npm/cli/package.json
           git commit -m "Release v$version"
           if ($LASTEXITCODE -ne 0) { throw "Couldn't commit the release." }
           git tag -a "v$version" -m "Bach $version"
@@ -295,6 +296,91 @@ jobs:
         run: |
           $name = "bach-${{ needs.release.outputs.version }}-windows-arm64"
           gh release upload "v${{ needs.release.outputs.version }}" "dist/$name.zip" "dist/$name.zip.sha256" --repo "${{ github.repository }}"
+
+  # `npm install --global @usebach/cli`: the programs the jobs above put on the
+  # release go into one npm package per platform (@usebach/cli-<platform>)
+  # and the package people install (@usebach/cli), so npm and the GitHub
+  # release can never disagree. It publishes with provenance. It needs the
+  # NPM_TOKEN secret (an npm automation token for the @usebach scope); without
+  # it the job says so and the release carries on. A version that is already
+  # on npm is skipped, so running the failed job again is safe.
+  npm:
+    name: Publish to npm
+    needs: [release, cli, windows-arm64]
+    if: ${{ !inputs.dry_run && !inputs.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      HAS_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+
+      - name: Say so when there is no npm token
+        if: ${{ env.HAS_TOKEN != 'true' }}
+        run: echo "::warning::The NPM_TOKEN secret isn't set, so @usebach/cli was not published to npm. Add the secret, then run this job again."
+
+      - name: Install Bun
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install Node.js
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Download the release's programs
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist/dl
+          gh release download "v$VERSION" --repo "${{ github.repository }}" --dir dist/dl --pattern "bach-$VERSION-*"
+          (cd dist/dl && sha256sum --check --strict ./*.sha256)
+          # The release says windows and macos; npm says win32 and darwin.
+          for pair in windows-x64:win32-x64 windows-arm64:win32-arm64 linux-x64:linux-x64 linux-arm64:linux-arm64 macos-x64:darwin-x64 macos-arm64:darwin-arm64; do
+            from="${pair%%:*}"; to="${pair##*:}"
+            mkdir -p "dist/bin/$to"
+            case "$from" in
+              windows-*) unzip -q -j -o "dist/dl/bach-$VERSION-$from.zip" -d "dist/bin/$to" ;;
+              *) tar -xzf "dist/dl/bach-$VERSION-$from.tar.gz" -C "dist/bin/$to" --strip-components=1 ;;
+            esac
+          done
+
+      - name: Build the packages
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        run: bun scripts/build-npm.mjs --version "$VERSION" --binaries dist/bin --out dist/npm
+
+      - name: Publish the packages
+        if: ${{ env.HAS_TOKEN == 'true' }}
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          # Pre-releases go under the "next" tag, so `npm install` keeps
+          # giving people the newest stable version.
+          tag=latest
+          if [ "$PRERELEASE" = "true" ] || [[ "$VERSION" == *-* ]]; then tag=next; fi
+          # The platform packages first: the main package depends on them.
+          for name in cli-win32-x64 cli-win32-arm64 cli-linux-x64 cli-linux-arm64 cli-darwin-x64 cli-darwin-arm64 cli; do
+            package="@usebach/$name"
+            if [ -n "$(npm view "$package@$VERSION" version 2>/dev/null)" ]; then
+              echo "$package@$VERSION is already on npm."
+              continue
+            fi
+            npm publish "dist/npm/tarballs/usebach-$name-$VERSION.tgz" --access public --provenance --tag "$tag"
+          done
 
   # The action installs the Bach version of the tag it is pinned with, so
   # these two tags are what makes @v0 and @v0.2 follow new releases. They move

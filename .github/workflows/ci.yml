@@ -43,6 +43,13 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Test the npm package
+        shell: pwsh
+        run: |
+          # The shim that `npm install --global @usebach/cli` puts on PATH.
+          node --test npm/cli/test
+          if ($LASTEXITCODE -ne 0) { throw 'The npm package tests failed.' }
+
       - name: Build the example installer
         shell: pwsh
         run: |
