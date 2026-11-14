@@ -44,19 +44,28 @@ if ($scope -eq 'system' -and -not $isAdmin) {
     foreach ($name in 'BACH_VERSION', 'BACH_INSTALL_DIR', 'BACH_NO_PATH') {
         if ("$([Environment]::GetEnvironmentVariable($name))" -notmatch $safe) { throw "$name has characters that can't be handed to an elevated install." }
     }
-    $file = $PSCommandPath
-    if (-not $file -or -not (Test-Path $file)) {
-        # Run from the web (irm | iex): there is no file to start again, so fetch the same script.
-        $file = Join-Path ([IO.Path]::GetTempPath()) ("bach-install-" + [Guid]::NewGuid() + '.ps1')
-        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$repo/main/install.ps1" -OutFile $file
-        $fetched = $true
+    # The elevated copy is given this script's text itself (compressed into its
+    # command line), never the path of a file: nothing in a folder the user can
+    # write to is run with administrator rights, so there is no file to swap
+    # between the prompt and the run. Run from the web (irm | iex) there is no
+    # file, so the same script is fetched, into memory.
+    $text = if ($PSCommandPath -and (Test-Path $PSCommandPath)) {
+        Get-Content -Raw -Path $PSCommandPath
+    } else {
+        (Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$repo/main/install.ps1").Content
     }
-    $log = Join-Path ([IO.Path]::GetTempPath()) ("bach-install-" + [Guid]::NewGuid() + '.log')
+    $bytes = [Text.Encoding]::UTF8.GetBytes($text)
+    $memory = New-Object IO.MemoryStream
+    $zip = New-Object IO.Compression.GZipStream($memory, [IO.Compression.CompressionMode]::Compress)
+    $zip.Write($bytes, 0, $bytes.Length)
+    $zip.Close()
+    $packed = [Convert]::ToBase64String($memory.ToArray())
     $settings = ('BACH_VERSION', 'BACH_INSTALL_DIR', 'BACH_NO_PATH' | ForEach-Object {
         $value = [Environment]::GetEnvironmentVariable($_)
         if ($value) { "`$env:$_ = '$($value -replace "'", "''")'; " }
     }) -join ''
-    $command = "$settings`$env:BACH_SCOPE = 'system'; try { & '$($file -replace "'", "''")' *> '$log'; exit `$LASTEXITCODE } catch { `$_ | Out-File -Append '$log'; exit 1 }"
+    # The window stays up on an error, so it can be read; the parent checks the result.
+    $command = "$settings`$env:BACH_SCOPE = 'system'; try { `$in = New-Object IO.MemoryStream(,[Convert]::FromBase64String('$packed')); `$text = (New-Object IO.StreamReader((New-Object IO.Compression.GZipStream(`$in, [IO.Compression.CompressionMode]::Decompress)), [Text.Encoding]::UTF8)).ReadToEnd(); Invoke-Expression `$text } catch { Write-Host `$_.Exception.Message; Read-Host 'Press Enter to close'; exit 1 }"
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
     Write-Host "Installing for every user needs administrator rights. Windows will ask for permission."
     $elevated = $null
@@ -68,11 +77,12 @@ if ($scope -eq 'system' -and -not $isAdmin) {
         $scope = 'user'
         $target = Get-Target
     }
-    if ($fetched) { Remove-Item -Force $file -ErrorAction SilentlyContinue }
     if ($elevated) {
-        if (Test-Path $log) { Get-Content $log; Remove-Item -Force $log -ErrorAction SilentlyContinue }
-        if ($elevated.ExitCode -ne 0) { throw "The system-wide install failed (exit code $($elevated.ExitCode)); nothing was changed for your user." }
+        if ($elevated.ExitCode -ne 0 -or -not (Test-Path (Join-Path $target 'bach.exe'))) {
+            throw "The system-wide install didn't finish (exit code $($elevated.ExitCode)); nothing was changed for your user."
+        }
         $env:Path = "$env:Path;$target"
+        Write-Host "Bach is installed in $target for every user. Start with: bach init"
         return
     }
 }
