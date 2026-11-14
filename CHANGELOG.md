@@ -2,6 +2,26 @@
 
 What changed in each release of Bach, newest first. The release workflow writes this from the commit history.
 
+## 0.3.0 (2026-11-14)
+
+### New
+
+- Let the install scripts install for every user, and only when asked ([c4d599c](https://github.com/usebach/bach/commit/c4d599c0f4e3930995772dc73edefa029357149f))
+- Add the @usebach/cli npm package and the script that builds it ([b38fd69](https://github.com/usebach/bach/commit/b38fd69efbd618bba6d7084993a416d9aa46b233))
+- Add bach version and bach workflow, a one-click GitHub release ([a8ebfe6](https://github.com/usebach/bach/commit/a8ebfe64098cf45e2fef534c617105cc7e37a5f4))
+
+### Fixes
+
+- Fix the CI step that tests the npm package on Node 22 ([835a812](https://github.com/usebach/bach/commit/835a81277fa0229c120d80ad35aead3c55b6925c))
+
+### Improvements
+
+- Hand the elevated install the script's text, not a file to run ([9e87082](https://github.com/usebach/bach/commit/9e870824c8bde577526cc36706da65762e74850f))
+- Document one-click releases, the npm install and system-wide installs ([7e03efa](https://github.com/usebach/bach/commit/7e03efadc36fb59cb72aca635bcfe8c6acebfdb2))
+- Publish the npm packages from the release workflow ([e2dc145](https://github.com/usebach/bach/commit/e2dc145a91ffb86a6cda9b867a32cfaeaca09575))
+
+All changes: [v0.2...v0.3.0](https://github.com/usebach/bach/compare/v0.2...v0.3.0)
+
 ## 0.2.1 (2026-11-14)
 
 ### Improvements
