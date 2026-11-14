@@ -171,3 +171,10 @@ That gives `target\release\bach.exe` and `target\release\bach-setup.exe`.
 [How it works](docs/how-it-works.md) explains the setup file format and the
 safety rules; [AGENTS.md](AGENTS.md) covers the code layout, checks and
 conventions for changes.
+
+## Contributing
+
+Bug reports, translations and pull requests are welcome; start with
+[CONTRIBUTING.md](CONTRIBUTING.md). Questions go to [SUPPORT.md](SUPPORT.md),
+security problems to the [security policy](SECURITY.md), and everyone here
+follows the [Code of Conduct](CODE_OF_CONDUCT.md).
