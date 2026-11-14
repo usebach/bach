@@ -76,6 +76,31 @@ fn remove_waiting(path: &Path, texts: &Texts, still_open: Key) -> Result<(), Str
     }
 }
 
+/// Starts a hidden `cmd` that retries deleting `file` (and then removing
+/// `folder`, if empty) for up to two minutes, until this process has exited
+/// and let go of it.
+pub(crate) fn delete_after_exit(file: &Path, folder: Option<&Path>) -> std::io::Result<()> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let file = file.display();
+    let cleanup = match folder {
+        Some(folder) => format!("rmdir \"{}\" >nul 2>&1 & ", folder.display()),
+        None => String::new(),
+    };
+    // cmd reads everything after `if (…)` on the same line as part of the
+    // if, so the wait sits in the if and the way out in the else.
+    let script = format!(
+        "/d /q /c \"for /l %i in (1,1,120) do @(del /f /q \"{file}\" >nul 2>&1 & \
+         if exist \"{file}\" (ping -n 2 127.0.0.1 >nul) else ({cleanup}exit))\""
+    );
+    std::process::Command::new("cmd.exe")
+        .raw_arg(script)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map(|_| ())
+}
+
 /// Removes the now-empty folders above each removed file, deepest first,
 /// stopping at `root` (which stays).
 fn remove_empty_parents<'a>(root: &Path, files: impl Iterator<Item = &'a str>) {

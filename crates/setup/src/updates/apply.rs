@@ -51,6 +51,12 @@ pub fn install(ctx: &Context, staged: &Staged) -> Result<i32, String> {
         let code = run_setup(ctx, &staged.file)?;
         if code == 0 {
             stage::clear(app_id);
+            // This process may be the uninstaller the update just replaced;
+            // the copy it left behind goes once it has exited.
+            let old = ctx.dir.join(format!("{}.bach-old", bach_pack::manifest::UNINSTALLER));
+            if old.exists() {
+                let _ = crate::work::delete_after_exit(&old, None);
+            }
             if ctx.args.launch {
                 launch_app(ctx);
             }
