@@ -1,6 +1,6 @@
 {
   "name": "@usebach/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Build modern, clean Windows installers from one bach.toml. Installs the bach command.",
   "keywords": ["installer", "setup", "windows", "bach", "updater", "cli"],
   "license": "MIT",
@@ -23,11 +23,11 @@
     "provenance": true
   },
   "optionalDependencies": {
-    "@usebach/cli-darwin-arm64": "0.3.0",
-    "@usebach/cli-darwin-x64": "0.3.0",
-    "@usebach/cli-linux-arm64": "0.3.0",
-    "@usebach/cli-linux-x64": "0.3.0",
-    "@usebach/cli-win32-arm64": "0.3.0",
-    "@usebach/cli-win32-x64": "0.3.0"
+    "@usebach/cli-darwin-arm64": "0.4.0",
+    "@usebach/cli-darwin-x64": "0.4.0",
+    "@usebach/cli-linux-arm64": "0.4.0",
+    "@usebach/cli-linux-x64": "0.4.0",
+    "@usebach/cli-win32-arm64": "0.4.0",
+    "@usebach/cli-win32-x64": "0.4.0"
   }
 }

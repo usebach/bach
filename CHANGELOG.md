@@ -2,6 +2,15 @@
 
 What changed in each release of Bach, newest first. The release workflow writes this from the commit history.
 
+## 0.4.0 (2026-11-14)
+
+### Improvements
+
+- Print a ready-to-paste PATH line when install.sh can't put bach on PATH ([bdec807](https://github.com/usebach/bach/commit/bdec80715569ab5184b5aa5567a323f1c53984ed))
+- Write a real README for the npm packages ([aca09dd](https://github.com/usebach/bach/commit/aca09dd632e388b9c953ab16b5a48f262ef5b771))
+
+All changes: [v0.3...v0.4.0](https://github.com/usebach/bach/compare/v0.3...v0.4.0)
+
 ## 0.3.0 (2026-11-14)
 
 ### New
