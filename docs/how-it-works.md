@@ -50,10 +50,34 @@ window can't be closed while files are moving.
 ## Updates from the app
 
 With `[updates]`, the installed `uninstall.exe` (the runtime with the
-app's manifest) answers `--check-update` and `--update`. It reads the feed's
-JSON with Windows' own `curl.exe`, https only, downloads the newer setup file,
-checks it against the feed's SHA-256 and that it carries the same app id,
-then runs it. The setup file does the update as usual.
+app's manifest) answers `--check-update`, `--download-update`,
+`--apply-update`, `--update` and `--auto-update`. It reads the feed's JSON
+with Windows' own `curl.exe`, https only, and downloads the newer setup file
+into `%LOCALAPPDATA%\Bach\updates\<app id>`, where it waits (and continues
+after an interruption) until it is installed. Before it runs, it is hashed
+again and must match the feed's SHA-256, carry the same app id and the
+version the feed names. The setup file does the update as usual, silently
+when it's started by `--apply-update` or the background task. See
+[updates](updates.md).
+
+The "Automatic updates" box registers a per-user scheduled task,
+`Bach\<app id>`, that runs `uninstall.exe --auto-update` every few hours. It
+installs only while the app isn't running. Unticking the box, an update
+without it, and uninstalling all delete the task.
+
+The running uninstaller can run an update: Windows lets a running program be
+renamed but not overwritten, so the new `uninstall.exe` takes its place and
+the old copy (`uninstall.exe.bach-old`) is deleted once the process ends.
+
+## Interrupted updates
+
+Moving the new files into place is all or nothing while the process lives. A
+power cut or a crash leaves no process to undo anything, so before the first
+move a small journal (`.bach-update`) lists every file that is about to
+move. The next install, update or removal, and each background round while
+the app is closed, reads it and puts back what was half moved. When all the
+moves are done, the new files are flushed to disk, then the journal and the
+old copies go. A journal can only act on paths inside the install folder.
 
 ## Logs
 

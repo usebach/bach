@@ -23,8 +23,8 @@ get updates over older installs and an uninstaller in **Settings › Apps**
 without writing installer logic.
 
 <p align="center">
-  <img src="docs/images/install-light.png" width="400" alt="Bach's install window in light mode, in English: install location, a sample-notes component, desktop shortcut and start-with-Windows options, Cancel and Install buttons">
-  <img src="docs/images/install-dark.png" width="400" alt="The same window in dark mode, in German">
+  <img src="docs/images/install-light.png" width="440" alt="Bach's install window in light mode, in English: install location, a sample-notes component, desktop shortcut and start-with-Windows options, Cancel and Install buttons">
+  <img src="docs/images/install-dark.png" width="440" alt="The same window in dark mode, in German">
 </p>
 
 > [!NOTE]
@@ -118,7 +118,7 @@ file adds about 10 MB to your app.
 | **Look and words** | Your logo, accent colour and icon; light, dark or system theme; any text, per language; a license page |
 | **Safety** | Free-space check, archive checksum, one setup per app at a time, "close and continue" when the app is open, data deleted only on request |
 | **Automation** | `Setup.exe /S` with `--dir`, `--with`, `--without`, `--log`; quiet uninstall from Settings › Apps |
-| **Updates** | Over older installs always; from inside the app with an https feed and `uninstall.exe --update` |
+| **Updates** | Over older installs always; by themselves in the background from GitHub releases (or any https feed), installed when the app is closed, undone cleanly if a power cut interrupts them: see [updates](docs/updates.md) |
 
 Every setting is in the [config reference](docs/config.md).
 
@@ -129,19 +129,35 @@ Every setting is in the [config reference](docs/config.md).
 | `bach init` | Writes a starter `bach.toml`; fills it in for Rust, Tauri, Electron and .NET projects. |
 | `bach check` | Validates the config and lists every file and option, with warnings. |
 | `bach preview` | Opens the window without installing; `--uninstall`, `--theme dark`, `--lang de`. |
-| `bach build` | Writes the setup file; `--fast` compresses less, `--out` picks the path. |
+| `bach build` | Writes the setup file; `--fast` compresses less, `--out` picks the path, `--app-version v1.4.0` sets the version (from a release tag). |
 | `bach inspect FILE` | Shows what a setup file or an installed `uninstall.exe` carries. |
 | `bach doctor` | Says whether everything a build needs is in place. |
-| `bach feed FILE --url URL` | Writes the update feed for a (signed) setup file. |
+| `bach feed FILE` | Writes the update feed for a (signed) setup file; the link comes from `bach.toml` (or `--url`), `--notes-file` says what's new. |
 | `bach winget FILE --url URL` | Writes the manifests that list a setup file in winget. |
 
 ## Other ways to install
 
 - **Scoop:** `scoop install https://raw.githubusercontent.com/usebach/bach/main/scoop/bach.json`
-- **GitHub Actions**, on any runner:
+- **GitHub Actions**, on any runner. Build and publish a release for every
+  pushed tag like `v1.4.0` (the tag is the app's version; installed apps
+  update from it, see [updates](docs/updates.md)):
 
   ```yaml
-  - uses: usebach/bach@main
+  permissions:
+    contents: write
+  steps:
+    - uses: actions/checkout@v4
+    # ... build your app ...
+    - uses: usebach/bach@v0
+      with:
+        config: bach.toml
+        release: true
+  ```
+
+  Or only build, and publish the file yourself:
+
+  ```yaml
+  - uses: usebach/bach@v0
     id: bach
     with:
       config: bach.toml
@@ -149,6 +165,9 @@ Every setting is in the [config reference](docs/config.md).
     with:
       path: ${{ steps.bach.outputs.setup }}
   ```
+
+  `@v0` follows the newest 0.x release, `@v0.2` the newest 0.2.x, `@v0.2.1`
+  never moves; the Bach version that builds follows what you pin.
 
 - **By hand:** download `bach-<version>-windows-x64.zip` from
   [releases](https://github.com/usebach/bach/releases) and keep `bach.exe` and
