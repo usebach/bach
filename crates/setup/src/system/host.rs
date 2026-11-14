@@ -3,13 +3,16 @@
 //! setup for the same app is already at work.
 
 use std::path::Path;
+use std::time::Duration;
 
 use windows::core::{HSTRING, PWSTR};
-use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE};
+use windows::Win32::Foundation::{CloseHandle, GetLastError, ERROR_ALREADY_EXISTS, HANDLE, WAIT_TIMEOUT};
 use windows::Win32::Globalization::{GetUserPreferredUILanguages, MUI_LANGUAGE_NAME};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
-use windows::Win32::System::Threading::CreateMutexW;
+use windows::Win32::System::Threading::{
+    CreateMutexW, OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
+};
 
 /// The user's Windows display languages, most preferred first, like
 /// `["de-DE", "en-US"]`. Empty if Windows won't say.
@@ -56,7 +59,18 @@ unsafe impl Send for SetupLock {}
 impl SetupLock {
     /// None when another setup for `app_id` holds the lock.
     pub fn acquire(app_id: &str) -> Option<Self> {
-        let name = HSTRING::from(format!("Local\\BachSetup-{app_id}"));
+        Self::named(&format!("Local\\BachSetup-{app_id}"))
+    }
+
+    /// The lock for one app's updater (`--apply-update`, `--auto-update`),
+    /// so two of them never download or apply at the same time. It is not
+    /// the setup lock: the setup file an updater starts takes that one.
+    pub fn acquire_updater(app_id: &str) -> Option<Self> {
+        Self::named(&format!("Local\\BachUpdate-{app_id}"))
+    }
+
+    fn named(name: &str) -> Option<Self> {
+        let name = HSTRING::from(name);
         // Safety: a named mutex owned by this handle until Drop closes it.
         unsafe {
             let handle = CreateMutexW(None, true, &name).ok()?;
@@ -75,6 +89,21 @@ impl Drop for SetupLock {
         unsafe {
             let _ = CloseHandle(self.0);
         }
+    }
+}
+
+/// Waits until the process `pid` has ended, up to `timeout`. True when it
+/// has (or when there is no such process, which comes to the same).
+pub fn wait_for_exit(pid: u32, timeout: Duration) -> bool {
+    // Safety: a synchronize-only handle to the process, closed below.
+    unsafe {
+        let Ok(process) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) else {
+            return true;
+        };
+        let millis = u32::try_from(timeout.as_millis()).unwrap_or(u32::MAX - 1);
+        let waited = WaitForSingleObject(process, millis);
+        let _ = CloseHandle(process);
+        waited != WAIT_TIMEOUT
     }
 }
 

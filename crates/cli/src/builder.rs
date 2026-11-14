@@ -7,15 +7,21 @@ use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
 use bach_pack::archive::{self, Compression};
-use bach_pack::config::{self, Project};
+use bach_pack::config::{self, Overrides, Project};
 use bach_pack::container;
 use sha2::{Digest, Sha256};
 
 use crate::output::{self, field, Progress};
 use crate::runtime;
 
-pub fn check(config_path: &Path) -> Result<()> {
-    let project = config::load(config_path)?;
+/// Loads the config, with the version of a release tag instead of
+/// `app.version` when one is given.
+fn load(config_path: &Path, version: Option<&str>) -> Result<Project> {
+    config::load_with(config_path, &Overrides { version: version.map(String::from) })
+}
+
+pub fn check(config_path: &Path, version: Option<&str>) -> Result<()> {
+    let project = load(config_path, version)?;
     let manifest = &project.manifest;
     println!("{} {} is ready to build.", manifest.app.name, manifest.app.version);
     summary(&project);
@@ -28,9 +34,15 @@ pub fn check(config_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn build(config_path: &Path, out: Option<&Path>, runtime: Option<&Path>, fast: bool) -> Result<PathBuf> {
+pub fn build(
+    config_path: &Path,
+    out: Option<&Path>,
+    runtime: Option<&Path>,
+    fast: bool,
+    version: Option<&str>,
+) -> Result<PathBuf> {
     let started = Instant::now();
-    let mut project = config::load(config_path)?;
+    let mut project = load(config_path, version)?;
     if fast {
         project.compression = Compression::Fast;
     }

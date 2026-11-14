@@ -1,7 +1,29 @@
 # Bach as a GitHub Action: installs the bach command (no Rust needed) and,
-# when given a config, builds the setup file.
+# given a config, builds the setup file, signs it, writes the update feed
+# and publishes it all as a GitHub release, so installed apps update
+# themselves. The whole pipeline for a release, on every push of a tag:
 #
-#   - uses: usebach/bach@v0.2.0
+#   on:
+#     push:
+#       tags: ['v*']
+#   permissions:
+#     contents: write
+#   jobs:
+#     release:
+#       runs-on: windows-latest
+#       steps:
+#         - uses: actions/checkout@v4
+#         # ... build your app into the folder bach.toml's [files] source names ...
+#         - uses: usebach/bach@v0
+#           with:
+#             config: bach.toml
+#             release: true
+#
+# The release's tag (v1.4.0) is the app's version, so there is no second
+# place to keep it; bach.toml needs `[updates] github = "owner/repo"`.
+# Without `release`, it only builds, and the file is yours to publish:
+#
+#   - uses: usebach/bach@v0
 #     id: bach
 #     with:
 #       config: bach.toml
@@ -9,11 +31,16 @@
 #     with:
 #       path: ${{ steps.bach.outputs.setup }}
 #
+# Pin it like any action: @v0 follows the newest 0.x release, @v0.2 the newest
+# 0.2.x, @v0.2.1 never moves. A full commit SHA never moves either: the Bach
+# that builds is then the version in that commit's Cargo.toml, so the pinned
+# code and the downloaded program always belong together. `version` picks
+# another one.
 # Works on Windows, macOS and Linux runners; outside Windows the setup file
 # keeps Bach's icon (build on windows-latest to apply app.icon).
 
 name: Bach
-description: Build a modern Windows installer (Setup.exe) from a bach.toml.
+description: Build a modern Windows installer (Setup.exe) from a bach.toml, and publish it as a release your installed app updates from.
 author: Bach
 branding:
   icon: package
@@ -21,7 +48,13 @@ branding:
 
 inputs:
   version:
-    description: The Bach version to install, like 0.2.0. Default the latest release.
+    description: >-
+      The Bach version to build with: 0.2.1 for exactly that one, 0.2 or 0 for
+      the newest of that line, latest for the newest release, local to use a
+      bach that is already on the PATH. Default: the version in the tag you
+      pinned the action with (usebach/bach@v0.2 builds with the newest 0.2.x;
+      a full commit SHA builds with the version in that commit's Cargo.toml),
+      or the latest release for a branch like main.
     required: false
     default: ''
   config:
@@ -32,33 +65,138 @@ inputs:
     description: More arguments for bach build, like --fast.
     required: false
     default: ''
+  app-version:
+    description: >-
+      The app's version, replacing app.version in bach.toml. "auto" (the
+      default) takes it from the tag a workflow runs for (v1.4.0 gives 1.4.0)
+      and keeps bach.toml's version on other runs; give a version to set it
+      yourself, or an empty string to always keep bach.toml's.
+    required: false
+    default: auto
+  sign-command:
+    description: >-
+      A PowerShell command that signs the setup file, which is in
+      $env:BACH_SETUP_FILE (for example: signtool sign /fd sha256 /f cert.pfx
+      /p $env:CERT_PASSWORD /tr http://timestamp.digicert.com /td sha256
+      $env:BACH_SETUP_FILE). It runs before the update feed is written, so the
+      feed carries the signed file's SHA-256. Windows runners only.
+    required: false
+    default: ''
+  notes:
+    description: What's new in this version, shown by apps that offer the update. Markdown is fine.
+    required: false
+    default: ''
+  notes-file:
+    description: A file with what's new, instead of `notes`.
+    required: false
+    default: ''
+  release:
+    description: >-
+      true publishes the setup file and latest.json as a GitHub release (the
+      tag is created when it doesn't exist). The job needs contents: write.
+    required: false
+    default: 'false'
+  tag:
+    description: The release's tag. Default v followed by the app's version.
+    required: false
+    default: ''
+  prerelease:
+    description: >-
+      true marks the release as a pre-release, which GitHub doesn't serve as
+      "latest", so installed apps don't update to it.
+    required: false
+    default: 'false'
+  draft:
+    description: true saves the release as a draft instead of publishing it.
+    required: false
+    default: 'false'
+  latest:
+    description: >-
+      false keeps this release from becoming GitHub's "latest" (for a fix to an
+      older line), so installed apps keep following the newest one.
+    required: false
+    default: 'true'
+  github-token:
+    description: The token that publishes the release and looks Bach's releases up.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   setup:
     description: The path of the setup file bach build wrote.
     value: ${{ steps.build.outputs.setup }}
+  version:
+    description: The version the setup file carries.
+    value: ${{ steps.build.outputs.version }}
+  feed:
+    description: The path of the update feed (latest.json), when bach.toml has [updates].
+    value: ${{ steps.feed.outputs.feed }}
+  tag:
+    description: The release's tag, when `release` is true.
+    value: ${{ steps.release.outputs.tag }}
+  release-url:
+    description: The link to the release, when `release` is true.
+    value: ${{ steps.release.outputs.url }}
+  bach-version:
+    description: The Bach version that was installed.
+    value: ${{ steps.install.outputs.bach-version }}
 
 runs:
   using: composite
   steps:
+    - name: Pick the Bach version
+      id: pick
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        version="$INPUT_VERSION"
+        if [ -z "$version" ] && printf '%s' "$ACTION_REF" | grep -Eq '^v?[0-9]+(\.[0-9]+){0,2}$'; then
+          # usebach/bach@v0.2 builds with the newest 0.2.x, @v0.2.1 with 0.2.1.
+          version="${ACTION_REF#v}"
+        elif [ -z "$version" ] && printf '%s' "$ACTION_REF" | grep -Eq '^[0-9a-f]{40}$'; then
+          # Pinned to a commit: the Bach of that commit, never a newer one.
+          version=$(tr -d '\r' < "$ACTION_PATH/Cargo.toml" | sed -n '/^\[workspace\.package\]/,/^\[/s/^version *= *"\([0-9.]*\)".*/\1/p' | head -n 1)
+        fi
+        if [ "$version" = "local" ]; then
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          version=""
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
     - name: Install bach (Windows)
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && steps.pick.outputs.skip != 'true'
       shell: pwsh
       env:
-        BACH_VERSION: ${{ inputs.version }}
+        BACH_VERSION: ${{ steps.pick.outputs.version }}
+        BACH_NO_PATH: '1'
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         & "$env:GITHUB_ACTION_PATH/install.ps1"
+        if ($LASTEXITCODE -ne 0) { exit 1 }
         Join-Path $env:LOCALAPPDATA 'Programs\bach-cli' | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
     - name: Install bach (macOS, Linux)
-      if: runner.os != 'Windows'
+      if: runner.os != 'Windows' && steps.pick.outputs.skip != 'true'
       shell: bash
       env:
-        BACH_VERSION: ${{ inputs.version }}
+        BACH_VERSION: ${{ steps.pick.outputs.version }}
         BACH_INSTALL_DIR: ${{ runner.temp }}/bach
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
         sh "$GITHUB_ACTION_PATH/install.sh"
         echo "$BACH_INSTALL_DIR" >> "$GITHUB_PATH"
+
+    - name: Report the Bach version
+      id: install
+      shell: bash
+      run: |
+        # A step's PATH change only applies to the steps after it.
+        if command -v bach >/dev/null 2>&1; then
+          echo "bach-version=$(bach --version | sed 's/^bach //')" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Build the setup file
       id: build
@@ -67,9 +205,127 @@ runs:
       env:
         CONFIG: ${{ inputs.config }}
         ARGS: ${{ inputs.args }}
+        APP_VERSION: ${{ inputs.app-version }}
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
       run: |
+        app_version="$APP_VERSION"
+        if [ "$app_version" = "auto" ]; then
+          app_version=""
+          # A tag like v1.4.0 is the version; a tag that isn't one is left alone.
+          if [ "$REF_TYPE" = "tag" ] && printf '%s' "$REF_NAME" | grep -Eq '^[vV]?[0-9]'; then
+            app_version="$REF_NAME"
+          fi
+        fi
         bach doctor "$CONFIG"
-        # shellcheck disable=SC2086
-        bach build "$CONFIG" $ARGS | tee "$RUNNER_TEMP/bach-build.log"
+        if [ -n "$app_version" ]; then
+          # shellcheck disable=SC2086
+          bach build "$CONFIG" --app-version "$app_version" $ARGS | tee "$RUNNER_TEMP/bach-build.log"
+        else
+          # shellcheck disable=SC2086
+          bach build "$CONFIG" $ARGS | tee "$RUNNER_TEMP/bach-build.log"
+        fi
         setup=$(sed -n 's/^Wrote \(.*\.exe\) (.*/\1/p' "$RUNNER_TEMP/bach-build.log" | head -n 1)
+        if [ -z "$setup" ]; then
+          echo "::error::bach build didn't report a setup file."
+          exit 1
+        fi
         echo "setup=$setup" >> "$GITHUB_OUTPUT"
+        echo "version=$(bach inspect "$setup" | sed -n 's/^Installer for .* \([^ ]*\)$/\1/p' | head -n 1)" >> "$GITHUB_OUTPUT"
+
+    - name: Sign the setup file
+      if: inputs.config != '' && inputs.sign-command != ''
+      shell: pwsh
+      env:
+        BACH_SETUP_FILE: ${{ steps.build.outputs.setup }}
+        SIGN_COMMAND: ${{ inputs.sign-command }}
+      run: |
+        Invoke-Expression $env:SIGN_COMMAND
+        if ($LASTEXITCODE -ne 0) { throw "The sign command failed (exit code $LASTEXITCODE)." }
+
+    - name: Write the update feed
+      id: feed
+      if: inputs.config != ''
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        SETUP: ${{ steps.build.outputs.setup }}
+        NOTES: ${{ inputs.notes }}
+        NOTES_FILE: ${{ inputs.notes-file }}
+        SIGNED: ${{ inputs.sign-command != '' }}
+      run: |
+        # bach build already wrote latest.json; it is written again when the
+        # file was signed (its SHA-256 changed) or there are notes to add.
+        if ! bach inspect "$SETUP" | grep -Eq '^ +Updates '; then
+          echo "bach.toml has no [updates], so there is no update feed."
+          exit 0
+        fi
+        # Windows' bash wants /c/... paths for its own tools.
+        if command -v cygpath >/dev/null 2>&1; then setup_unix=$(cygpath -u "$SETUP"); else setup_unix="$SETUP"; fi
+        folder=$(dirname "$setup_unix")
+        if [ "$SIGNED" = "true" ] || [ -n "$NOTES" ] || [ -n "$NOTES_FILE" ]; then
+          if [ -n "$NOTES" ]; then
+            bach feed "$SETUP" --config "$CONFIG" --notes "$NOTES"
+          elif [ -n "$NOTES_FILE" ]; then
+            bach feed "$SETUP" --config "$CONFIG" --notes-file "$NOTES_FILE"
+          else
+            bach feed "$SETUP" --config "$CONFIG"
+          fi
+        fi
+        echo "feed=$folder/latest.json" >> "$GITHUB_OUTPUT"
+
+    - name: Publish the release
+      id: release
+      if: inputs.config != '' && inputs.release == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        GH_REPO: ${{ github.repository }}
+        SETUP: ${{ steps.build.outputs.setup }}
+        FEED: ${{ steps.feed.outputs.feed }}
+        VERSION: ${{ steps.build.outputs.version }}
+        TAG: ${{ inputs.tag }}
+        NOTES: ${{ inputs.notes }}
+        NOTES_FILE: ${{ inputs.notes-file }}
+        PRERELEASE: ${{ inputs.prerelease }}
+        DRAFT: ${{ inputs.draft }}
+        LATEST: ${{ inputs.latest }}
+        TARGET: ${{ github.sha }}
+      run: |
+        tag="${TAG:-v$VERSION}"
+        # Windows' bash wants /c/... paths for its own file tests.
+        if command -v cygpath >/dev/null 2>&1; then
+          setup=$(cygpath -u "$SETUP")
+          [ -n "$FEED" ] && feed=$(cygpath -u "$FEED") || feed=""
+        else
+          setup="$SETUP"; feed="$FEED"
+        fi
+        files=("$setup")
+        [ -n "$feed" ] && [ -f "$feed" ] && files+=("$feed")
+
+        flags=()
+        [ "$PRERELEASE" = "true" ] && flags+=(--prerelease)
+        [ "$DRAFT" = "true" ] && flags+=(--draft)
+        if [ "$PRERELEASE" != "true" ] && [ "$DRAFT" != "true" ]; then
+          if [ "$LATEST" = "false" ]; then flags+=(--latest=false); else flags+=(--latest); fi
+        fi
+
+        if gh release view "$tag" >/dev/null 2>&1; then
+          # Running a release again replaces its files and keeps the rest.
+          gh release upload "$tag" "${files[@]}" --clobber
+        else
+          notes=(--generate-notes)
+          [ -n "$NOTES" ] && notes=(--notes "$NOTES")
+          [ -z "$NOTES" ] && [ -n "$NOTES_FILE" ] && notes=(--notes-file "$NOTES_FILE")
+          gh release create "$tag" "${files[@]}" --title "$tag" --target "$TARGET" "${notes[@]}" "${flags[@]}"
+        fi
+        url=$(gh release view "$tag" --json url --jq .url)
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        echo "url=$url" >> "$GITHUB_OUTPUT"
+        {
+          echo "### Released $tag"
+          echo
+          echo "- Setup file: \`$(basename "$setup")\`"
+          [ ${#files[@]} -gt 1 ] && echo "- Update feed: \`latest.json\`"
+          echo "- $url"
+        } >> "$GITHUB_STEP_SUMMARY"

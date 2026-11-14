@@ -48,11 +48,31 @@ pub struct Args {
     pub update: bool,
     /// `--check-update`: only say whether there is one (exit code 10).
     pub check_update: bool,
+    /// `--download-update`: fetch a newer version in the background and keep
+    /// it ready (exit code 10 when one is ready).
+    pub download_update: bool,
+    /// `--apply-update`: install the version that was kept ready.
+    pub apply_update: bool,
+    /// `--auto-update`: one background round (check, download, and install
+    /// when the app isn't running), as the scheduled task runs it.
+    pub auto_update: bool,
+    /// `--json`: `--check-update` prints its answer as JSON.
+    pub json: bool,
+    /// `--wait-for PID`: let that process (the app) end first.
+    pub wait_for: Option<u32>,
+    /// `--launch`: start the app again after a silent update.
+    pub launch: bool,
     pub theme: Option<Theme>,
     pub lang: Option<String>,
 }
 
 impl Args {
+    /// Whether this run is about updating the installed app, as opposed to
+    /// installing, removing or previewing.
+    pub fn updating(&self) -> bool {
+        self.update || self.check_update || self.download_update || self.apply_update || self.auto_update
+    }
+
     pub fn parse() -> Self {
         Self::from(std::env::args().skip(1).collect())
     }
@@ -84,6 +104,12 @@ impl Args {
             log: value_of("--log").map(PathBuf::from),
             update: has(&["--update"]),
             check_update: has(&["--check-update"]),
+            download_update: has(&["--download-update"]),
+            apply_update: has(&["--apply-update"]),
+            auto_update: has(&["--auto-update"]),
+            json: has(&["--json"]),
+            wait_for: value_of("--wait-for").and_then(|pid| pid.trim().parse().ok()),
+            launch: has(&["--launch"]),
             theme: value_of("--theme").and_then(|value| Theme::parse(&value)),
             lang: value_of("--lang"),
         }
@@ -167,5 +193,17 @@ mod tests {
         assert_eq!(parsed.lang.as_deref(), Some("de"));
         assert!(args("/S").silent);
         assert!(args("--preview --theme dark").theme == Some(Theme::Dark));
+    }
+
+    #[test]
+    fn update_flags_are_read() {
+        let parsed = args("--apply-update --wait-for 4242 --launch --silent");
+        assert!(parsed.apply_update && parsed.launch && parsed.updating());
+        assert_eq!(parsed.wait_for, Some(4242));
+        assert!(args("--check-update --json").json);
+        assert!(args("--auto-update").updating());
+        assert!(args("--download-update").download_update);
+        assert!(!args("--silent").updating());
+        assert_eq!(args("--wait-for soon").wait_for, None);
     }
 }

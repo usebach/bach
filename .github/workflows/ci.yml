@@ -53,3 +53,41 @@ jobs:
       - name: Install, update and remove for real
         shell: pwsh
         run: ./scripts/e2e.ps1 -Profile release
+
+      - name: Prepare the action test
+        shell: pwsh
+        run: |
+          # The action runs against the bach just built, as a pinned release would.
+          Copy-Item examples/hello/bach.toml examples/hello/bach.ci.toml
+          Add-Content examples/hello/bach.ci.toml "`n[updates]`ngithub = `"usebach/bach`"`n"
+          "$PWD\target\release" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Build with the action
+        id: bach
+        uses: ./
+        with:
+          version: local
+          config: examples/hello/bach.ci.toml
+          app-version: v7.8.9
+          notes: CI check of the action
+
+      - name: Check what the action made
+        shell: pwsh
+        env:
+          SETUP: ${{ steps.bach.outputs.setup }}
+          FEED: ${{ steps.bach.outputs.feed }}
+          VERSION: ${{ steps.bach.outputs.version }}
+          BACH_VERSION_OUTPUT: ${{ steps.bach.outputs.bach-version }}
+        run: |
+          function Check([bool]$ok, [string]$what) {
+            if ($ok) { Write-Host "ok    $what" } else { throw "FAIL  $what" }
+          }
+          Check ($env:VERSION -eq '7.8.9') "the version output is 7.8.9 (it was '$env:VERSION')"
+          Check ((Split-Path -Leaf $env:SETUP) -eq 'Hello-Setup-7.8.9.exe') "the setup file carries the tag's version ($env:SETUP)"
+          Check (Test-Path $env:SETUP) 'the setup file exists'
+          Check ([bool]$env:BACH_VERSION_OUTPUT) 'the Bach version was reported'
+          $feed = Get-Content $env:FEED -Raw | ConvertFrom-Json
+          Check ($feed.version -eq '7.8.9') 'the feed says 7.8.9'
+          Check ($feed.notes -eq 'CI check of the action') 'the feed carries the notes'
+          Check ($feed.url -eq 'https://github.com/usebach/bach/releases/download/v7.8.9/Hello-Setup-7.8.9.exe') "the feed points at the tag's download ($($feed.url))"
+          Check ($feed.sha256 -eq (Get-FileHash -Algorithm SHA256 $env:SETUP).Hash.ToLower()) "the feed has the file's SHA-256"

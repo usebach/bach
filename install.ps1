@@ -2,8 +2,9 @@
 #
 #   irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
 #
-# Downloads the latest release (or $env:BACH_VERSION, like "0.2.0"), checks
-# its SHA-256, unpacks bach.exe and bach-setup.exe into
+# Downloads the latest release (or $env:BACH_VERSION: "0.2.0" for exactly
+# that one, "0.2" or "0" for the newest of that line, "latest" for the
+# newest), checks its SHA-256, unpacks bach.exe and bach-setup.exe into
 # %LOCALAPPDATA%\Programs\bach-cli (or $env:BACH_INSTALL_DIR) and adds that
 # folder to your PATH. Run
 # it again to update. Nothing else on your computer changes: if that folder
@@ -32,25 +33,52 @@ if (Test-Path $target) {
     }
 }
 
-$api = if ($env:BACH_VERSION) {
-    "https://api.github.com/repos/$repo/releases/tags/v$($env:BACH_VERSION.TrimStart('v'))"
-} else {
-    "https://api.github.com/repos/$repo/releases/latest"
-}
+$wanted = "$($env:BACH_VERSION)".Trim().TrimStart('v', 'V')
+if ($wanted -ieq 'latest') { $wanted = '' }
 $headers = @{ 'User-Agent' = 'bach-install' }
-try {
-    $release = Invoke-RestMethod -UseBasicParsing -Uri $api -Headers $headers
-} catch {
-    $release = $null
-    # "latest" skips pre-releases; while there are only those, take the newest.
-    if (-not $env:BACH_VERSION) {
-        try {
-            $release = Invoke-RestMethod -UseBasicParsing -Uri "https://api.github.com/repos/$repo/releases?per_page=1" -Headers $headers |
-                Select-Object -First 1
-        } catch {}
+if ($env:GITHUB_TOKEN) { $headers['Authorization'] = "Bearer $($env:GITHUB_TOKEN)" }
+$release = $null
+
+if ($wanted -match '^\d+(\.\d+)?$') {
+    # "0" or "0.2": the newest release of that line. 0.2 is 0.2.0, 0.2.1, ...
+    # and never 0.20; a pre-release is only taken when the line has no other.
+    try {
+        # Piped, so Windows PowerShell hands the releases over one by one.
+        $all = @(Invoke-RestMethod -UseBasicParsing -Uri "https://api.github.com/repos/$repo/releases?per_page=100" -Headers $headers | ForEach-Object { $_ })
+    } catch {
+        throw "Couldn't reach GitHub to find Bach $wanted ($($_.Exception.Message)). Check your connection, or download the zip from https://github.com/$repo/releases."
     }
-    if (-not $release) {
-        throw "Couldn't reach GitHub to find the Bach release ($api). Check your connection, or download the zip from https://github.com/$repo/releases."
+    $line = '^v' + [regex]::Escape($wanted) + '(\.|$)'
+    $matching = @($all | Where-Object { -not $_.draft -and $_.tag_name -match $line } | ForEach-Object {
+        $parsed = $null
+        if ([version]::TryParse(($_.tag_name -replace '^v', '' -replace '-.*$', ''), [ref]$parsed)) {
+            [pscustomobject]@{ Release = $_; Version = $parsed }
+        }
+    })
+    $stable = @($matching | Where-Object { -not $_.Release.prerelease })
+    $pick = if ($stable) { $stable } else { $matching }
+    $release = ($pick | Sort-Object Version -Descending | Select-Object -First 1).Release
+    if (-not $release) { throw "Bach has no release $wanted.x. See https://github.com/$repo/releases for the versions there are." }
+    Write-Host "Bach $wanted resolves to $($release.tag_name)"
+} else {
+    $api = if ($wanted) {
+        "https://api.github.com/repos/$repo/releases/tags/v$wanted"
+    } else {
+        "https://api.github.com/repos/$repo/releases/latest"
+    }
+    try {
+        $release = Invoke-RestMethod -UseBasicParsing -Uri $api -Headers $headers
+    } catch {
+        # "latest" skips pre-releases; while there are only those, take the newest.
+        if (-not $wanted) {
+            try {
+                $release = Invoke-RestMethod -UseBasicParsing -Uri "https://api.github.com/repos/$repo/releases?per_page=1" -Headers $headers |
+                    Select-Object -First 1
+            } catch {}
+        }
+        if (-not $release) {
+            throw "Couldn't find the Bach release ($api). Check your connection and the version, or download the zip from https://github.com/$repo/releases."
+        }
     }
 }
 # Windows on ARM gets its own build when the release has one; the x64 build

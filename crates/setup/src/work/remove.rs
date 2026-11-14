@@ -16,9 +16,12 @@ use bach_pack::i18n::Key;
 use bach_pack::manifest::{Choice, Manifest, UNINSTALLER};
 use bach_pack::paths;
 
-use super::{describe, failed, plain, remove_empty_parents, remove_file_if_present, remove_waiting, same_file, Report};
+use super::{
+    delete_after_exit, describe, failed, plain, remove_empty_parents, remove_file_if_present, remove_waiting, same_file,
+    Report,
+};
 use crate::package::Package;
-use crate::system::{self, env_path, host, integration};
+use crate::system::{self, env_path, host, integration, task};
 use crate::texts::Texts;
 
 pub struct RemovePlan {
@@ -39,6 +42,9 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
     let running_in_place = current.as_deref().is_some_and(|current| same_file(current, &uninstaller));
 
     report(0.1, &texts.get(Key::step_removing));
+    // An update cut short earlier is undone first, so what's on disk is
+    // what the manifest lists.
+    super::place::recover(dir);
     let program = manifest.executable_in(dir);
     remove_waiting(&program, texts, Key::error_still_open)?;
     for file in &manifest.files {
@@ -78,6 +84,8 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
         // exiting; give it a moment to let go of its file.
         remove_waiting(&uninstaller, texts, Key::error_busy)?;
     }
+    // What an update's rename of the running uninstaller left behind.
+    super::place::clear_leftovers(&uninstaller);
     // Only an empty folder goes: the user may have kept their own files there.
     let _ = fs::remove_dir(dir);
     system::notify_shell();
@@ -99,6 +107,12 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
 fn undo_integration(manifest: &Manifest, dir: &Path, program: &Path, texts: &Texts) -> Result<(), String> {
     let fail = |err: anyhow::Error| format!("{} {}", texts.get(Key::error_system), plain(&err));
     integration::clear_autostart(manifest, program).map_err(fail)?;
+    if manifest.updates.is_some() {
+        // Best effort: a task that can't be deleted does nothing once the
+        // app is gone (it removes itself on its next round).
+        let _ = task::unregister(manifest);
+        crate::updates::forget_staged(&manifest.app.id);
+    }
     let added_to_path = match &manifest.chosen {
         Some(chosen) => chosen.add_to_path,
         None => manifest.install.add_to_path == Choice::Always,
@@ -153,29 +167,4 @@ fn delete_data(manifest: &Manifest, texts: &Texts) -> Result<(), String> {
 fn is_temporary_copy(path: &Path) -> bool {
     let temp = std::env::temp_dir();
     path.parent().is_some_and(|parent| same_file(parent, &temp))
-}
-
-/// Starts a hidden `cmd` that retries deleting `file` (and then removing
-/// `folder`, if empty) for up to two minutes, until this process has exited
-/// and let go of it.
-fn delete_after_exit(file: &Path, folder: Option<&Path>) -> std::io::Result<()> {
-    use std::os::windows::process::CommandExt;
-    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-
-    let file = file.display();
-    let cleanup = match folder {
-        Some(folder) => format!("rmdir \"{}\" >nul 2>&1 & ", folder.display()),
-        None => String::new(),
-    };
-    // cmd reads everything after `if (…)` on the same line as part of the
-    // if, so the wait sits in the if and the way out in the else.
-    let script = format!(
-        "/d /q /c \"for /l %i in (1,1,120) do @(del /f /q \"{file}\" >nul 2>&1 & \
-         if exist \"{file}\" (ping -n 2 127.0.0.1 >nul) else ({cleanup}exit))\""
-    );
-    std::process::Command::new("cmd.exe")
-        .raw_arg(script)
-        .creation_flags(CREATE_NO_WINDOW)
-        .spawn()
-        .map(|_| ())
 }

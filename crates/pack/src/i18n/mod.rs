@@ -69,6 +69,7 @@ texts! {
     desktop_shortcut, desktop_shortcut_description,
     start_menu, start_menu_description,
     start_with_windows, start_with_windows_description,
+    auto_update, auto_update_description,
     add_to_path, add_to_path_description,
     delete_data, delete_data_description,
     installing, updating, removing,

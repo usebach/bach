@@ -436,17 +436,48 @@
     "updates": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "feed"
+      "description": "Lets the installed app update itself. Give github (owner/repo) or a feed link.",
+      "anyOf": [
+        {
+          "required": [
+            "github"
+          ]
+        },
+        {
+          "required": [
+            "feed"
+          ]
+        }
       ],
       "properties": {
+        "github": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+          "description": "owner/repo: updates come from that repository's GitHub releases (the Bach action publishes them)."
+        },
         "feed": {
           "type": "string",
-          "pattern": "^https://"
+          "pattern": "^https://",
+          "description": "The https link of the update feed (latest.json). Not needed with github."
         },
         "download_url": {
           "type": "string",
-          "pattern": "^https://"
+          "pattern": "^https://",
+          "description": "Where the setup file will be downloaded from. {file} is its name, {version} the app version."
+        },
+        "auto": {
+          "description": "Keep the app up to date in the background: true (offered, ticked; the default), false (offered, unticked), \"always\" or \"never\".",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "always",
+                "never"
+              ]
+            }
+          ]
         }
       }
     },
@@ -1479,6 +1510,70 @@
           ]
         },
         "start_with_windows_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "auto_update": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "auto_update_description": {
           "description": "Text for every language, or a table of texts by language code.",
           "oneOf": [
             {

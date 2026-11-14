@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use bach_pack::i18n::Key;
-use bach_pack::manifest::{OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU};
+use bach_pack::manifest::{choices_auto_update, OPTION_AUTO_UPDATE, OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU};
 
 use crate::launch::{self, Args, Mode};
 use crate::package::Package;
@@ -99,6 +99,7 @@ fn offered(package: &Package) -> Vec<String> {
         (OPTION_START_MENU, install.start_menu_shortcut),
         (OPTION_AUTOSTART, install.start_with_windows),
         (OPTION_PATH, install.add_to_path),
+        (OPTION_AUTO_UPDATE, choices_auto_update(&package.manifest)),
     ];
     let mut ids: Vec<String> =
         builtin.iter().filter(|(_, choice)| choice.offered()).map(|(id, _)| id.to_string()).collect();

@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::Choice;
+
 /// Something the app needs on the computer before it can run. Setup only
 /// looks (read-only, no administrator rights needed) and, when it's
 /// missing, sends the user to `url` to get it.
@@ -67,6 +69,11 @@ pub struct Updates {
     /// An https URL serving the JSON `bach build` writes next to the setup
     /// file: `{ "version", "url", "sha256", "notes" }`.
     pub feed: String,
+    /// Whether the installed app keeps itself up to date in the background
+    /// (a per-user scheduled task). `Never` is also what a setup file built
+    /// before this option existed reads as, so an update offers it fresh.
+    #[serde(default)]
+    pub auto: Choice,
 }
 
 /// The JSON a feed serves.
@@ -79,6 +86,10 @@ pub struct FeedEntry {
     pub sha256: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
+    /// The setup file's size in bytes, so an update can check the disk has
+    /// room before it downloads anything.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
 }
 
 /// Whether `url` is an https URL (the only kind updates and requirement

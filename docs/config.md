@@ -200,7 +200,15 @@ description = "Read the manual"   # optional tooltip
 ## [updates]
 
 Lets the installed app update itself. `bach build` writes `latest.json`
-next to the setup file; upload both, and the app finds new versions.
+next to the setup file; publish both, and the app finds new versions. With
+GitHub releases, one line is enough:
+
+```toml
+[updates]
+github = "owner/repo"
+```
+
+or with a server of your own:
 
 ```toml
 [updates]
@@ -208,9 +216,21 @@ feed = "https://example.com/hello/latest.json"
 download_url = "https://example.com/hello/{file}"   # {file}: the setup file's name
 ```
 
-See [updating from the app](#updating-from-the-app) for how the app asks.
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `github` | none | `owner/repo`. Updates come from that repository's releases: the feed is `https://github.com/owner/repo/releases/latest/download/latest.json`, and each version's file is downloaded from its own tag, `.../releases/download/v{version}/{file}`. The setup file is named the way GitHub serves it (anything but letters, digits, `.`, `-` and `_` becomes `-`). |
+| `feed` | from `github` | The `https` link of `latest.json`, which the installed app reads. Needed without `github`. |
+| `download_url` | from `github` | The `https` link the setup file will be downloaded from. `{file}` is the setup file's name (encoded for a link), `{version}` the app's version. |
+| `auto` | `true` | Keep the app up to date in the background: `true` (the install page offers "Automatic updates", ticked), `false` (offered, unticked), `"always"` or `"never"`. |
+
+Either `github` or `feed` is needed, and `app.version` must be numbers like
+`1.4.0` (a suffix like `-beta.1` is fine), because the app compares versions.
+
 Signing changes the setup file, and so its SHA-256: after signing, write the
-feed again with `bach feed SETUP.exe --url URL`.
+feed again with `bach feed SETUP.exe`. The whole story, from publishing with
+the GitHub action to what happens on the user's PC, is in
+[updates](updates.md); the commands are under
+[updating from the app](#updating-from-the-app).
 
 ## [text]
 
@@ -256,6 +276,7 @@ a text is given in only one, `bach check` points it out.
 | `desktop_shortcut`, `desktop_shortcut_description` | Desktop shortcut, Start {name} from your desktop too. |
 | `start_menu`, `start_menu_description` | Start menu, Find {name} in the Start menu. |
 | `start_with_windows`, `start_with_windows_description` | Start with Windows, Open {name} automatically when you sign in. |
+| `auto_update`, `auto_update_description` | Automatic updates, Install new versions of {name} in the background while it isn't running. |
 | `add_to_path`, `add_to_path_description` | Add to PATH, Run {name} from any terminal. |
 | `delete_data`, `delete_data_description` | Also delete my data, Settings and files {name} saved on this computer. |
 | `installing`, `updating`, `removing` | Installing {name}, Updating {name}, Removing {name} |
@@ -350,7 +371,7 @@ Hello-Setup-1.4.0.exe --silent
 | --- | --- |
 | `--silent` (also `/S`, `/quiet`) | No window. Exit code 0 when done, 1 when it failed (the reason is printed in a terminal), 2 for a command-line mistake. |
 | `--dir PATH` | Install here instead of the default folder (a first install, when `change_folder` allows it). |
-| `--with a,b` / `--without a,b` | Tick or untick options: `desktop-shortcut`, `start-menu`, `autostart`, `path`, and component ids. Only options the install page would offer. |
+| `--with a,b` / `--without a,b` | Tick or untick options: `desktop-shortcut`, `start-menu`, `autostart`, `path`, `auto-update`, and component ids. Only options the install page would offer. |
 | `--lang CODE` | The language for messages, instead of Windows' own. |
 | `--allow-downgrade` | Install over a newer version (refused otherwise, with exit code 1). |
 | `--log FILE` | Where the log goes. By default every run writes `%TEMP%\<app id>-setup.log`. |
@@ -374,11 +395,27 @@ knows the feed:
 "%LOCALAPPDATA%\Programs\Hello\uninstall.exe" --check-update
 ```
 
-exits with 10 when a newer version is out (and prints it), 0 when it's up to
-date. `--update` downloads it and opens its setup window; `--update --silent`
-installs it without a window and exits with the setup's own code. Downloads
-are https only, checked against the feed's SHA-256, and must be a setup file
-for the same app id, so a wrong or tampered file is never run.
+| Flag | Meaning |
+| --- | --- |
+| `--check-update` | Exit code 10 when a newer version is out (it prints which), 0 when up to date, 1 when the feed can't be read. Changes nothing. |
+| `--check-update --json` | Prints one line of JSON instead: `app`, `current`, `latest`, `available`, `downloaded` (kept ready already), `notes`, `size`. |
+| `--download-update` | Downloads a newer version into `%LOCALAPPDATA%\Bach\updates\<app id>` and keeps it ready. Exit code 10: ready, 0: up to date. A cut-off download continues where it stopped. |
+| `--apply-update` | Installs what was kept ready, silently. Exit code 0: installed, or nothing was waiting; 1: it couldn't be installed yet (it stays ready). |
+| `--wait-for PID` | With `--apply-update` or `--update`: wait up to ten minutes for that process (your app) to end first. |
+| `--launch` | With `--apply-update` or `--update --silent`: start the app again afterwards. |
+| `--update` | Downloads it (or uses the one kept ready) and opens its setup window. |
+| `--update --silent` | Installs it without a window and exits with the setup's own code. |
+| `--auto-update` | One background round: check, download, and install if the app isn't running. This is what the "Automatic updates" scheduled task runs. |
+
+Updating in the background, so closing the app is all the user does: run
+`--download-update` when the app starts, and `--apply-update --wait-for
+<your process id> --launch` when it quits.
+
+Downloads are https only, checked against the feed's SHA-256, and must be a
+setup file for the same app id and the version the feed names, so a wrong or
+tampered file is never run. A kept download is checked again right before it
+runs. An update cut short by a power cut is put back by the next install,
+update or removal. Every run logs to `%TEMP%\<app id>-update.log`.
 
 ## Editor support
 

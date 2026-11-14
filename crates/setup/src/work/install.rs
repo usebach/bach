@@ -27,7 +27,7 @@ use bach_pack::paths;
 use super::place::{self, Transaction};
 use super::{describe, failed, is_disk_full, is_in_use, plain, remove_empty_parents, remove_file_if_present, Report};
 use crate::package::Package;
-use crate::system::{self, env_path, host, integration};
+use crate::system::{self, env_path, host, integration, task};
 use crate::texts::{self, Texts};
 
 /// Unpacking is most of the work; the steps after it share the rest.
@@ -55,6 +55,8 @@ pub fn install(plan: &InstallPlan, report: Report) -> Result<(), String> {
 
     report(0.02, &texts.get(Key::step_preparing));
     create_install_dir(dir, texts)?;
+    // An update that was cut short earlier is undone first.
+    place::recover(dir);
     let program = manifest.executable_in(dir);
     ensure_closed(&program, texts)?;
     let previous = previous_install(dir, manifest);
@@ -97,13 +99,23 @@ fn create_install_dir(dir: &Path, texts: &Texts) -> Result<(), String> {
 
 /// Fails with a readable sentence when the app is running from `program`.
 fn ensure_closed(program: &Path, texts: &Texts) -> Result<(), String> {
-    if !program.exists() {
-        return Ok(());
+    if is_running(program) {
+        Err(texts.get(Key::error_still_open))
+    } else {
+        Ok(())
     }
-    match fs::OpenOptions::new().write(true).open(program) {
-        Err(err) if is_in_use(&err) => Err(texts.get(Key::error_still_open)),
-        _ => Ok(()),
-    }
+}
+
+/// Whether the app is running from `program`: a program in use can't be
+/// opened for writing.
+pub fn is_running(program: &Path) -> bool {
+    program.exists() && matches!(fs::OpenOptions::new().write(true).open(program), Err(err) if is_in_use(&err))
+}
+
+/// Undoes an update that was cut short in `dir` (see `place.rs`); how many
+/// files it put back or took away. Callers hold the setup lock.
+pub fn recover_interrupted(dir: &Path) -> usize {
+    place::recover(dir)
 }
 
 fn check_free_space(dir: &Path, needed: u64, texts: &Texts) -> Result<(), String> {
@@ -133,6 +145,7 @@ fn unpack(
     for file in &manifest.files {
         place::clear_leftovers(&paths::under(dir, &file.path));
     }
+    place::clear_leftovers(&dir.join(UNINSTALLER));
 
     let copying = texts.get(Key::step_copying);
     let total = needed.max(1);
@@ -166,7 +179,7 @@ fn unpack(
         remove_empty_parents(dir, wanted.iter().copied());
         return Err(write_error.unwrap_or_else(|| format!("{} {}", texts.get(Key::error_damaged), plain(&err))));
     }
-    transaction.commit().map_err(|failure| {
+    transaction.commit(&place::journal_path(dir)).map_err(|failure| {
         if is_in_use(&failure.error) {
             texts.with(Key::error_in_use, &[("path", &failure.target.display().to_string())])
         } else {
@@ -223,7 +236,9 @@ fn write_uninstaller(package: &Package, installed: &Manifest, dir: &Path, texts:
         let _ = fs::remove_file(&partial);
         return Err(fail(plain(&err)));
     }
-    fs::rename(&partial, &target).map_err(|err| {
+    // The uninstaller may be what is running this update, which Windows only
+    // lets be renamed, not overwritten.
+    place::replace_file(&partial, &target).map_err(|err| {
         let _ = fs::remove_file(&partial);
         if is_in_use(&err) {
             texts.with(Key::error_in_use, &[("path", &target.display().to_string())])
@@ -332,6 +347,19 @@ fn integrate(
         integration::set_autostart(manifest, program).map_err(fail)?;
     } else {
         integration::clear_autostart(manifest, program).map_err(fail)?;
+    }
+
+    // Automatic updates are a per-user scheduled task. A PC that won't allow
+    // one just doesn't update by itself; that never fails the install.
+    if manifest.updates.is_some() {
+        let result = if choices.auto_update {
+            task::register(manifest, &dir.join(UNINSTALLER))
+        } else {
+            task::unregister(manifest)
+        };
+        if let Err(err) = result {
+            crate::log::line(&format!("Automatic updates: {err:#}"));
+        }
     }
 
     // PATH is only touched when this app put something there or will now.

@@ -124,8 +124,10 @@ name = "My App Docs"
 target = "docs.exe"
 
 [updates]                                 # the installed app can update itself
-feed = "https://example.com/myapp/latest.json"
-download_url = "https://example.com/myapp/{file}"
+github = "owner/repo"                     # from that repo's GitHub releases; or:
+# feed = "https://example.com/myapp/latest.json"
+# download_url = "https://example.com/myapp/{file}"
+# auto = true                             # offer "Automatic updates" (false / "always" / "never")
 
 [uninstall]
 data = ['%APPDATA%\My App']               # single quotes keep backslashes
@@ -186,12 +188,25 @@ window speaks several).
 - In CI, `bach build` exits non-zero with a one-sentence reason on any
   problem. On Linux/macOS runners it works too (the setup file keeps Bach's
   icon there; build on Windows to apply `app.icon`). The GitHub Action does
-  both steps: `uses: usebach/bach@main` with `config: bach.toml`, output
+  both steps: `uses: usebach/bach@v0` with `config: bach.toml`, output
   `setup`.
-- With `[updates]`, upload the setup file and the `latest.json` written next
-  to it. After signing, rewrite the feed: `bach feed SETUP.exe --url URL`.
-  The app checks with `uninstall.exe --check-update` (exit 10 = newer
-  version) and updates with `uninstall.exe --update`.
+- To publish updates from GitHub: set `[updates] github = "owner/repo"`, and
+  in a workflow that runs on pushed tags (`v*`, with `contents: write`) use
+  `usebach/bach@v0` with `config: bach.toml` and `release: true`. The tag is
+  the app's version (`bach build --app-version v1.4.0`), the release holds the
+  setup file and `latest.json`. `@v0.2` pins a line, a SHA pins a commit.
+  `sign-command`, `notes` and `version` (which Bach: `0.2`, `latest`) are the
+  other inputs. Docs: docs/updates.md.
+- Without GitHub, upload the setup file and the `latest.json` written next to
+  it. After signing, rewrite the feed: `bach feed SETUP.exe` (the link comes
+  from `bach.toml`, or `--url URL`).
+- The installed `uninstall.exe` does the updating: `--check-update [--json]`
+  (exit 10 = newer version), `--download-update` (fetch in the background),
+  `--apply-update [--wait-for PID] [--launch]` (install what was fetched,
+  once the app has closed), `--update [--silent]`. The "Automatic updates"
+  box adds a per-user scheduled task that does it every few hours while the
+  app is closed. A good app runs `--download-update` at start and
+  `--apply-update --wait-for <pid> --launch` when it quits.
 - To list the app in winget: `bach winget SETUP.exe --url URL --license MIT`,
   then `winget validate` and a pull request to microsoft/winget-pkgs.
 

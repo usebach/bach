@@ -126,6 +126,20 @@ anything goes wrong midway, the earlier version stays exactly as it was.
 Keep `[app] id` (it defaults to the name) the same across versions; it's
 how Bach recognises the install.
 
+To have installed apps update themselves, host the project on GitHub and add
+this to `bach.toml`:
+
+```toml
+[updates]
+github = "owner/repo"
+```
+
+Then publish with the Bach action: push a tag like `v1.1.0` and it builds
+the setup file with that version and publishes it as a release. Installed
+apps find it, download it in the background and install it when the app
+is closed. See [updates](updates.md) for the workflow, and for what your app
+can do to update on quit.
+
 ## Tips
 
 - **SmartScreen.** Windows warns about unsigned downloads from new

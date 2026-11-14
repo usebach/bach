@@ -14,6 +14,7 @@ pub mod apps;
 pub mod env_path;
 pub mod host;
 pub mod integration;
+pub mod task;
 
 use std::path::{Path, PathBuf};
 

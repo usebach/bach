@@ -10,8 +10,8 @@ use super::text::localized;
 use super::InstallerSection;
 use crate::manifest::features::{is_valid_component_id, is_valid_extension, is_valid_scheme};
 use crate::manifest::{
-    self, Choice, Component, FileEntry, FileType, Protocol, OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH,
-    OPTION_START_MENU,
+    self, Choice, Component, FileEntry, FileType, Protocol, OPTION_AUTO_UPDATE, OPTION_AUTOSTART,
+    OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU,
 };
 use crate::paths;
 
@@ -72,7 +72,7 @@ pub(super) fn install(section: &InstallerSection, app: &manifest::App) -> Result
 
 /// `true` (offered, ticked), `false` (offered, unticked), `"always"` or
 /// `"never"`.
-fn choice(value: Option<&toml::Value>, key: &str, default: Choice) -> Result<Choice> {
+pub(super) fn choice(value: Option<&toml::Value>, key: &str, default: Choice) -> Result<Choice> {
     let parsed = match value {
         None => return Ok(default),
         Some(toml::Value::Boolean(true)) => Some(Choice::On),
@@ -100,7 +100,7 @@ pub(super) fn components(
     app: &manifest::App,
     languages: &[String],
 ) -> Result<Vec<Component>> {
-    let builtin = [OPTION_DESKTOP, OPTION_START_MENU, OPTION_AUTOSTART, OPTION_PATH];
+    let builtin = [OPTION_DESKTOP, OPTION_START_MENU, OPTION_AUTOSTART, OPTION_PATH, OPTION_AUTO_UPDATE];
     let mut seen = HashSet::new();
     let mut components = Vec::new();
     for (index, section) in sections.iter().enumerate() {
