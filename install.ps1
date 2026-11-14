@@ -9,16 +9,73 @@
 # folder to your PATH. Run
 # it again to update. Nothing else on your computer changes: if that folder
 # holds anything but Bach's own two files, it stops instead of writing.
+#
+# It never asks for administrator rights unless you ask for a system-wide
+# install: set $env:BACH_SCOPE = 'system' first. Then bach goes to
+# %ProgramFiles%\bach-cli for every user, and Windows' own prompt (UAC) asks
+# for permission once, for that copy only. If you decline, Bach is installed
+# for you alone, as without BACH_SCOPE.
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $repo = 'usebach/bach'
+$scope = "$($env:BACH_SCOPE)".Trim().ToLower()
+if (-not $scope) { $scope = 'user' }
+if ($scope -ne 'user' -and $scope -ne 'system') { throw "BACH_SCOPE must be user or system, not $scope." }
 if ($env:BACH_INSTALL_DIR) { $customTarget = $env:BACH_INSTALL_DIR }
-# Its own folder: Programs\Bach may be another app called Bach, and
-# Windows file names ignore case, so bach.exe would replace Bach.exe.
-$target = if ($customTarget) { $customTarget } else { Join-Path $env:LOCALAPPDATA 'Programs\bach-cli' }
+function Get-Target {
+    # Its own folder: Programs\Bach may be another app called Bach, and
+    # Windows file names ignore case, so bach.exe would replace Bach.exe.
+    if ($customTarget) { return $customTarget }
+    if ($scope -eq 'system') { return (Join-Path $env:ProgramFiles 'bach-cli') }
+    return (Join-Path $env:LOCALAPPDATA 'Programs\bach-cli')
+}
+$target = Get-Target
+
+# A system-wide install writes to Program Files and the machine's PATH, which
+# takes administrator rights. Ask for them the way Windows does (UAC), run
+# only this script with them, and carry on for the user alone if they're
+# refused.
+$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if ($scope -eq 'system' -and -not $isAdmin) {
+    $safe = '^[\w .:\\/()-]*$'
+    foreach ($name in 'BACH_VERSION', 'BACH_INSTALL_DIR', 'BACH_NO_PATH') {
+        if ("$([Environment]::GetEnvironmentVariable($name))" -notmatch $safe) { throw "$name has characters that can't be handed to an elevated install." }
+    }
+    $file = $PSCommandPath
+    if (-not $file -or -not (Test-Path $file)) {
+        # Run from the web (irm | iex): there is no file to start again, so fetch the same script.
+        $file = Join-Path ([IO.Path]::GetTempPath()) ("bach-install-" + [Guid]::NewGuid() + '.ps1')
+        Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$repo/main/install.ps1" -OutFile $file
+        $fetched = $true
+    }
+    $log = Join-Path ([IO.Path]::GetTempPath()) ("bach-install-" + [Guid]::NewGuid() + '.log')
+    $settings = ('BACH_VERSION', 'BACH_INSTALL_DIR', 'BACH_NO_PATH' | ForEach-Object {
+        $value = [Environment]::GetEnvironmentVariable($_)
+        if ($value) { "`$env:$_ = '$($value -replace "'", "''")'; " }
+    }) -join ''
+    $command = "$settings`$env:BACH_SCOPE = 'system'; try { & '$($file -replace "'", "''")' *> '$log'; exit `$LASTEXITCODE } catch { `$_ | Out-File -Append '$log'; exit 1 }"
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+    Write-Host "Installing for every user needs administrator rights. Windows will ask for permission."
+    $elevated = $null
+    try {
+        $shell = (Get-Process -Id $PID).Path
+        $elevated = Start-Process -FilePath $shell -Verb RunAs -Wait -PassThru -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded
+    } catch {
+        Write-Host "No administrator rights, so Bach is installed just for you instead."
+        $scope = 'user'
+        $target = Get-Target
+    }
+    if ($fetched) { Remove-Item -Force $file -ErrorAction SilentlyContinue }
+    if ($elevated) {
+        if (Test-Path $log) { Get-Content $log; Remove-Item -Force $log -ErrorAction SilentlyContinue }
+        if ($elevated.ExitCode -ne 0) { throw "The system-wide install failed (exit code $($elevated.ExitCode)); nothing was changed for your user." }
+        $env:Path = "$env:Path;$target"
+        return
+    }
+}
 $ours = @('bach.exe', 'bach-setup.exe')
 # This file marks a folder as this script's own. A folder that has files but
 # no mark belongs to something else (even a lone Bach.exe), and stays as is.
@@ -124,10 +181,15 @@ try {
     Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
 }
 
-# Add the folder to the user's PATH (unless BACH_NO_PATH is set, as in CI),
-# keeping the value's type so entries like %USERPROFILE%\bin stay as they are.
+# Add the folder to the PATH (unless BACH_NO_PATH is set, as in CI): the
+# machine's for a system-wide install, otherwise the user's. The value's type
+# is kept, so entries like %USERPROFILE%\bin stay as they are.
 if (-not $env:BACH_NO_PATH) {
-    $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+    $key = if ($scope -eq 'system') {
+        [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SYSTEM\CurrentControlSet\Control\Session Manager\Environment', $true)
+    } else {
+        [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+    }
     $path = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
     $kind = if ($key.GetValueNames() -contains 'Path') { $key.GetValueKind('Path') } else { [Microsoft.Win32.RegistryValueKind]::ExpandString }
     $entries = $path -split ';' | Where-Object { $_ -ne '' }
@@ -135,8 +197,8 @@ if (-not $env:BACH_NO_PATH) {
         $new = if ($path -eq '' -or $path.EndsWith(';')) { "$path$target" } else { "$path;$target" }
         $key.SetValue('Path', $new, $kind)
         # Tells Explorer the environment changed, so new terminals see it.
-        [Environment]::SetEnvironmentVariable('BACH_INSTALL_REFRESH', $null, 'User')
-        Write-Host "Added $target to your PATH. Open a new terminal to use it."
+        [Environment]::SetEnvironmentVariable('BACH_INSTALL_REFRESH', $null, $(if ($scope -eq 'system') { 'Machine' } else { 'User' }))
+        Write-Host "Added $target to $(if ($scope -eq 'system') { 'the system' } else { 'your' }) PATH. Open a new terminal to use it."
     }
     $key.Close()
 }
