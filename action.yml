@@ -1,0 +1,75 @@
+# Bach as a GitHub Action: installs the bach command (no Rust needed) and,
+# when given a config, builds the setup file.
+#
+#   - uses: usebach/bach@v0.2.0
+#     id: bach
+#     with:
+#       config: bach.toml
+#   - uses: actions/upload-artifact@v4
+#     with:
+#       path: ${{ steps.bach.outputs.setup }}
+#
+# Works on Windows, macOS and Linux runners; outside Windows the setup file
+# keeps Bach's icon (build on windows-latest to apply app.icon).
+
+name: Bach
+description: Build a modern Windows installer (Setup.exe) from a bach.toml.
+author: Bach
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  version:
+    description: The Bach version to install, like 0.2.0. Default the latest release.
+    required: false
+    default: ''
+  config:
+    description: A bach.toml to build. Leave empty to only install bach.
+    required: false
+    default: ''
+  args:
+    description: More arguments for bach build, like --fast.
+    required: false
+    default: ''
+
+outputs:
+  setup:
+    description: The path of the setup file bach build wrote.
+    value: ${{ steps.build.outputs.setup }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install bach (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      env:
+        BACH_VERSION: ${{ inputs.version }}
+      run: |
+        & "$env:GITHUB_ACTION_PATH/install.ps1"
+        Join-Path $env:LOCALAPPDATA 'Programs\bach-cli' | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+    - name: Install bach (macOS, Linux)
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        BACH_VERSION: ${{ inputs.version }}
+        BACH_INSTALL_DIR: ${{ runner.temp }}/bach
+      run: |
+        sh "$GITHUB_ACTION_PATH/install.sh"
+        echo "$BACH_INSTALL_DIR" >> "$GITHUB_PATH"
+
+    - name: Build the setup file
+      id: build
+      if: inputs.config != ''
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        ARGS: ${{ inputs.args }}
+      run: |
+        bach doctor "$CONFIG"
+        # shellcheck disable=SC2086
+        bach build "$CONFIG" $ARGS | tee "$RUNNER_TEMP/bach-build.log"
+        setup=$(sed -n 's/^Wrote \(.*\.exe\) (.*/\1/p' "$RUNNER_TEMP/bach-build.log" | head -n 1)
+        echo "setup=$setup" >> "$GITHUB_OUTPUT"
