@@ -1,10 +1,10 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Build modern, clean Windows installers from one bach.toml.",
   "homepage": "https://github.com/usebach/bach",
   "license": "MIT",
-  "url": "https://github.com/usebach/bach/releases/download/v0.2.0/bach-0.2.0-windows-x64.zip",
-  "hash": "7c700b422f382544f7a029c9ffa88dd41cefd93730467d22c28e1a83c1859dc0",
+  "url": "https://github.com/usebach/bach/releases/download/v0.2.1/bach-0.2.1-windows-x64.zip",
+  "hash": "6dea73797f78aaaa6d3f983b24022792ab8771b856a9b8bc910a43c3c552e274",
   "bin": "bach.exe",
   "checkver": "github",
   "autoupdate": {

@@ -2,6 +2,14 @@
 
 What changed in each release of Bach, newest first. The release workflow writes this from the commit history.
 
+## 0.2.1 (2026-11-14)
+
+### Improvements
+
+- Update action name to 'Bach Installer' ([d4b63d1](https://github.com/usebach/bach/commit/d4b63d1334bd661bfd8b7cc12ff0597dbab46561))
+
+All changes: [v0.2...v0.2.1](https://github.com/usebach/bach/compare/v0.2...v0.2.1)
+
 ## 0.2.0 (2026-11-14)
 
 ### New
