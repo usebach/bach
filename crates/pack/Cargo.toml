@@ -8,11 +8,11 @@ publish = false
 
 [dependencies]
 anyhow.workspace = true
-argon2 = "0.5"
+argon2 = "0.6"
 chacha20poly1305 = { version = "0.10", features = ["stream"] }
-getrandom = "0.2"
+getrandom = "0.4"
 serde.workspace = true
 serde_json.workspace = true
-sha2 = "0.10"
-toml = "0.8"
-zstd = { version = "0.13", features = ["zstdmt"] }
+sha2 = "0.11"
+toml = "1.2"
+zstd = { version = "0.14", features = ["zstdmt"] }
