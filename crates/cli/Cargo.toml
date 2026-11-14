@@ -15,10 +15,10 @@ bach-pack = { path = "../pack" }
 anyhow.workspace = true
 clap = { version = "4", features = ["derive", "env"] }
 serde_json.workspace = true
-sha2 = "0.10"
-toml = "0.8"
+sha2 = "0.11"
+toml = "1.2"
 
 # Writing the setup file's icon and version details uses Windows' own
 # resource updater; elsewhere the builder skips that step and says so.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging"] }
