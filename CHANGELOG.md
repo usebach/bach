@@ -2,6 +2,30 @@
 
 What changed in each release of Bach, newest first. The release workflow writes this from the commit history.
 
+## 0.2.0 (2026-11-14)
+
+### New
+
+- Add automatic updates, a GitHub shortcut and a version override to the config ([71cf34a](https://github.com/usebach/bach/commit/71cf34abbdf94f16ee60f1f287c64486383a858c))
+- Add weekly Dependabot updates for Cargo, Actions and Bun ([7e502ab](https://github.com/usebach/bach/commit/7e502aba816e25c795c758f983d918d047623adc))
+- Add a pull request template with the checks and a safety question ([eb7f5a6](https://github.com/usebach/bach/commit/eb7f5a633dd0fd81bbc8f7a4d77c3ef1bd335caf))
+- Add issue forms for bugs, feature requests and translations, and a support page ([9d0f690](https://github.com/usebach/bach/commit/9d0f6903d083b933f962ffb1cf6cdec3eba7e0c7))
+- Add a contributing guide and link the community files from the README ([9ac0f1d](https://github.com/usebach/bach/commit/9ac0f1d946ad9bd40fba99d0f5c85503b80aef49))
+- Add a code of conduct based on the Contributor Covenant ([ef84c5c](https://github.com/usebach/bach/commit/ef84c5c59a9672f3213de9d853a6af3677025fc7))
+- Add a security policy with private vulnerability reporting ([db34ff5](https://github.com/usebach/bach/commit/db34ff52e00e93b1e4985e25a22e7da64f322f82))
+
+### Improvements
+
+- Document updates from GitHub, the background updater and the action ([15e738e](https://github.com/usebach/bach/commit/15e738ec1568cac3d06a0e205a2026ca23acaab9))
+- Make the action a whole release pipeline and let people pick the Bach version ([6a7ce1a](https://github.com/usebach/bach/commit/6a7ce1abb7f9529327e0b8f4e4aeb4f6a3fc0a0e))
+- Test the update flow for real: staged downloads, wait-for, launch, cut-short updates, release builds ([9130084](https://github.com/usebach/bach/commit/9130084404df8ad015772271a4b6f91c96c25dd7))
+- Take the version from a release tag and write the feed from the config ([8e0f665](https://github.com/usebach/bach/commit/8e0f665270b7d770b3b2ad13dc4059986759e407))
+- Download updates in the background and install them when the app is closed ([36be987](https://github.com/usebach/bach/commit/36be987d78534ac7589b620dfcf5cd9149f7cedf))
+- Roll back an update that a power cut or crash stopped halfway ([a0ae633](https://github.com/usebach/bach/commit/a0ae633d25dd5f9110068ecb11e865ba04b72912))
+- Update: Bump @tabler/icons-react from 3.50.0 to 3.51.0 ([7caea3c](https://github.com/usebach/bach/commit/7caea3c1a89bb791e67ac350ef35548503688478))
+
+All changes: [v0.1.1...v0.2.0](https://github.com/usebach/bach/compare/v0.1.1...v0.2.0)
+
 ## 0.1.1 (2026-11-14)
 
 ### New
