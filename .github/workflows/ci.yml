@@ -1,6 +1,7 @@
 # Checks every push to main and every pull request: tests, clippy with
-# warnings as errors, and a full build of the example installer, so a change
-# that breaks the setup file is caught before release.
+# warnings as errors, a full build of the example installer, and a real
+# silent install, update, downgrade, damage and uninstall run of it, so a
+# change that breaks setup files is caught before release.
 
 name: CI
 
@@ -48,3 +49,7 @@ jobs:
           ./scripts/build-example.ps1
           target/release/bach.exe inspect dist/Hello-Setup-1.0.0.exe
           if ($LASTEXITCODE -ne 0) { throw "The example installer isn't readable." }
+
+      - name: Install, update and remove for real
+        shell: pwsh
+        run: ./scripts/e2e.ps1 -Profile release
