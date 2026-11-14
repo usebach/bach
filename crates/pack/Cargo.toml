@@ -10,5 +10,5 @@ publish = false
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-toml = "0.8"
-zstd = { version = "0.13", features = ["zstdmt"] }
+toml = "1.2"
+zstd = { version = "0.14", features = ["zstdmt"] }
