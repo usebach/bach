@@ -65,7 +65,7 @@ BEGIN
       VALUE "FileDescription", "Bach Setup"
       VALUE "FileVersion", "{version}"
       VALUE "InternalName", "bach-setup"
-      VALUE "LegalCopyright", "GPL-3.0-only"
+      VALUE "LegalCopyright", "MIT License"
       VALUE "OriginalFilename", "bach-setup.exe"
       VALUE "ProductName", "Bach"
       VALUE "ProductVersion", "{version}"
