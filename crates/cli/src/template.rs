@@ -4,25 +4,28 @@ use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 
-const TEMPLATE: &str = r##"# bach.toml: how Bach builds your installer.
+use crate::detect::Detected;
+
+const TEMPLATE: &str = r##"#:schema https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json
+# bach.toml: how Bach builds your installer.
 # Build it with `bach build`; see what it installs with `bach check`;
 # look at the window with `bach preview`. Paths are relative to this file.
 # Every setting: https://github.com/usebach/bach/blob/main/docs/config.md
 
 [app]
 name = "@NAME@"
-version = "1.0.0"
-publisher = "@NAME@"
+version = "@VERSION@"
+publisher = "@PUBLISHER@"
 # The program to start, inside the files folder below.
-executable = "@EXE@.exe"
+executable = "@EXE@"
 # description = "One line about your app."   # also the install page's subtitle
 # website = "https://example.com"
 # icon = "icon.ico"           # the setup file's icon (and the window's logo)
 
 [files]
 # Everything in this folder is installed. Build your app into it first.
-source = "build"
-# exclude = ["*.pdb", "*.log"]
+source = "@SOURCE@"
+@EXCLUDE@
 
 [installer]
 # output = "dist/{name}-Setup-{version}.exe"
@@ -41,6 +44,12 @@ source = "build"
 # path_folder = "bin"         # what goes on PATH (default: the install folder)
 # change_folder = true        # may the user pick another folder?
 # open_button = true          # offer "Open @NAME@" at the end?
+# start_menu_folder = "@PUBLISHER@"  # put the shortcuts in a folder
+
+@REQUIREMENTS@# Updates: the installed app runs `uninstall.exe --update` to fetch them.
+# [updates]
+# feed = "https://example.com/@SCHEME@/latest.json"
+# download_url = "https://example.com/@SCHEME@/{file}"
 
 # Optional parts the user can leave out:
 # [[components]]
@@ -50,13 +59,13 @@ source = "build"
 # files = ["samples/**"]
 # default = true
 
-# Links like @EXE@://open start your app with the link:
+# Links like @SCHEME@://open start your app with the link:
 # [[protocols]]
-# scheme = "@EXE@"
+# scheme = "@SCHEME@"
 
 # Files your app opens, offered under "Open with":
 # [[file_types]]
-# extension = ".@EXE@"
+# extension = ".@SCHEME@"
 # description = "@NAME@ document"
 
 # Any text in the window, in one language or per language:
@@ -77,17 +86,54 @@ pub fn init(dir: &Path) -> Result<()> {
         bail!("{} already exists; Bach won't overwrite it", path.display());
     }
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", dir.display()))?;
-    let name = guess_name(dir);
-    let exe = executable_name(&name);
-    let text = TEMPLATE.replace("@NAME@", &name).replace("@EXE@", &exe);
+    let detected = crate::detect::detect(dir);
+    let text = fill(detected.as_ref(), &guess_name(dir));
     std::fs::write(&path, text).with_context(|| format!("couldn't write {}", path.display()))?;
-    println!("Wrote {}. Fill in [app] and [files], then run `bach check`.", path.display());
+    match &detected {
+        Some(found) => println!(
+            "Wrote {} for this {} project. Check [app] and [files], then run `bach check`.",
+            path.display(),
+            found.stack
+        ),
+        None => println!("Wrote {}. Fill in [app] and [files], then run `bach check`.", path.display()),
+    }
     Ok(())
+}
+
+/// The template with what the project says about itself, or placeholders
+/// from the folder's name.
+fn fill(found: Option<&Detected>, folder_name: &str) -> String {
+    let empty = Detected::default();
+    let found = found.unwrap_or(&empty);
+    let name = found.name.clone().unwrap_or_else(|| folder_name.to_string());
+    let scheme = executable_name(&name);
+    let exclude = if found.exclude.is_empty() {
+        "# exclude = [\"*.pdb\", \"*.log\"]".to_string()
+    } else {
+        let patterns: Vec<String> = found.exclude.iter().map(|pattern| format!("\"{pattern}\"")).collect();
+        format!("exclude = [{}]", patterns.join(", "))
+    };
+    let requirements = found.requirements.clone().map(|block| format!("{block}\n")).unwrap_or_default();
+    TEMPLATE
+        .replace("@NAME@", &name)
+        .replace("@VERSION@", found.version.as_deref().unwrap_or("1.0.0"))
+        .replace("@PUBLISHER@", found.publisher.as_deref().unwrap_or(&name))
+        .replace("@EXE@", &found.executable.clone().unwrap_or_else(|| format!("{scheme}.exe")))
+        .replace("@SOURCE@", found.source.as_deref().unwrap_or("build"))
+        .replace("@EXCLUDE@", &exclude)
+        .replace("@REQUIREMENTS@", &requirements)
+        .replace("@SCHEME@", &scheme)
 }
 
 /// "My Cool App" → "my-cool-app": also a usable link scheme and extension.
 fn executable_name(name: &str) -> String {
-    name.to_lowercase().replace(' ', "-")
+    let slug: String = name.to_lowercase().chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+    let slug = slug.split('-').filter(|part| !part.is_empty()).collect::<Vec<_>>().join("-");
+    if slug.chars().next().is_some_and(|c| c.is_ascii_lowercase()) {
+        slug
+    } else {
+        format!("app-{slug}")
+    }
 }
 
 /// The folder's name, tidied into something that works as an app name.
@@ -127,9 +173,29 @@ mod tests {
         let name = guess_name(&dir);
         let exe = executable_name(&name);
         std::fs::write(dir.join("build").join(format!("{exe}.exe")), b"MZ").unwrap();
+        let text = std::fs::read_to_string(dir.join("bach.toml")).unwrap();
+        assert!(text.starts_with("#:schema "), "editors find the schema");
         let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();
         assert_eq!(project.manifest.app.name, name);
         assert!(init(&dir).is_err(), "init must not overwrite");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A detected Rust project gets a config that builds as soon as the
+    /// release build is there.
+    #[test]
+    fn detected_projects_fill_the_template() {
+        let dir = std::env::temp_dir().join(format!("bach-init-rust-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("target/release/deps")).unwrap();
+        std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"clip-board\"\nversion = \"0.4.0\"\n").unwrap();
+        std::fs::write(dir.join("target/release/clip-board.exe"), b"MZ").unwrap();
+        std::fs::write(dir.join("target/release/deps/junk.rlib"), b"x").unwrap();
+        init(&dir).unwrap();
+        let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();
+        assert_eq!(project.manifest.app.name, "Clip Board");
+        assert_eq!(project.manifest.app.version, "0.4.0");
+        assert_eq!(project.manifest.files.len(), 1, "build leftovers are excluded");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -16,6 +16,19 @@ pub struct Start {
     pub previous: Option<Manifest>,
     pub dir: PathBuf,
     pub choices: Choices,
+    /// The installed version is newer than this setup file's.
+    pub downgrade: bool,
+}
+
+/// The requirements this computer doesn't meet yet, by index.
+pub fn missing_requirements(manifest: &Manifest) -> Vec<usize> {
+    manifest
+        .requirements
+        .iter()
+        .enumerate()
+        .filter(|(_, requirement)| !crate::system::apps::is_present(&requirement.check))
+        .map(|(index, _)| index)
+        .collect()
 }
 
 pub fn install(manifest: &Manifest) -> Start {
@@ -36,5 +49,8 @@ pub fn install(manifest: &Manifest) -> Start {
         }
         None => Choices::defaults(manifest),
     };
-    Start { existing, previous, dir, choices }
+    let downgrade = existing.as_ref().is_some_and(|installed| {
+        bach_pack::version::compare(&installed.version, &manifest.app.version) == Some(std::cmp::Ordering::Greater)
+    });
+    Start { existing, previous, dir, choices, downgrade }
 }

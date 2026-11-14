@@ -18,6 +18,7 @@ pub mod container;
 pub mod i18n;
 pub mod manifest;
 pub mod paths;
+pub mod version;
 
 /// The payload format this build writes and reads. A setup runtime refuses
 /// a payload with another number instead of misreading it.

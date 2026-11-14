@@ -86,6 +86,18 @@ pub const FR: Strings = Strings {
     error_open_failed: "{name} est installé, mais n'a pas démarré : {error}",
     problem_title: "Rien à installer",
     problem_damaged: "Ce fichier d'installation est endommagé : {error}. Téléchargez-le à nouveau.",
+    downgrade_title: "Installer une version antérieure de {name} ?",
+    downgrade_subtitle: "{name} {old_version} est installé et plus récent que la version {version}. Cette version le remplacera, vos données sont conservées.",
+    downgrade_button: "Installer quand même",
+    close_app: "Fermer et continuer",
+    error_close_app: "{name} ne s'est pas fermé. Enregistrez votre travail, fermez-le, puis réessayez.",
+    requirement_title: "{requirement} est nécessaire",
+    requirement_subtitle: "{name} a besoin de {requirement}. Installez-le, puis revenez ici.",
+    requirement_button: "Obtenir {requirement}",
+    step_downloading: "Téléchargement de la mise à jour",
+    error_download: "Impossible de télécharger la mise à jour. {error}",
+    website: "Site web",
+    feedback: "Dites-nous pourquoi",
 };
 
 pub const ES: Strings = Strings {
@@ -172,6 +184,18 @@ pub const ES: Strings = Strings {
     error_open_failed: "{name} está instalado, pero no se inició: {error}",
     problem_title: "Nada que instalar",
     problem_damaged: "Este archivo de instalación está dañado: {error}. Descárgalo de nuevo.",
+    downgrade_title: "¿Instalar una versión anterior de {name}?",
+    downgrade_subtitle: "{name} {old_version} está instalado y es más reciente que la versión {version}. Esta versión lo reemplazará y se conservarán tus datos.",
+    downgrade_button: "Instalar de todos modos",
+    close_app: "Cerrar y continuar",
+    error_close_app: "{name} no se cerró. Guarda tu trabajo, ciérralo y vuelve a intentarlo.",
+    requirement_title: "Se necesita {requirement}",
+    requirement_subtitle: "{name} necesita {requirement} para funcionar. Instálalo y vuelve aquí.",
+    requirement_button: "Obtener {requirement}",
+    step_downloading: "Descargando la actualización",
+    error_download: "No se pudo descargar la actualización. {error}",
+    website: "Sitio web",
+    feedback: "Cuéntanos por qué",
 };
 
 pub const IT: Strings = Strings {
@@ -258,6 +282,18 @@ pub const IT: Strings = Strings {
     error_open_failed: "{name} è installato, ma non si è avviato: {error}",
     problem_title: "Niente da installare",
     problem_damaged: "Questo file di installazione è danneggiato: {error}. Scaricalo di nuovo.",
+    downgrade_title: "Installare una versione precedente di {name}?",
+    downgrade_subtitle: "{name} {old_version} è installato ed è più recente della versione {version}. Questa versione lo sostituirà mantenendo i tuoi dati.",
+    downgrade_button: "Installa comunque",
+    close_app: "Chiudi e continua",
+    error_close_app: "{name} non si è chiuso. Salva il tuo lavoro, chiudilo e riprova.",
+    requirement_title: "Serve {requirement}",
+    requirement_subtitle: "{name} ha bisogno di {requirement} per funzionare. Installalo, poi torna qui.",
+    requirement_button: "Scarica {requirement}",
+    step_downloading: "Download dell'aggiornamento",
+    error_download: "Impossibile scaricare l'aggiornamento. {error}",
+    website: "Sito web",
+    feedback: "Dicci perché",
 };
 
 pub const PT: Strings = Strings {
@@ -344,4 +380,16 @@ pub const PT: Strings = Strings {
     error_open_failed: "O {name} está instalado, mas não iniciou: {error}",
     problem_title: "Nada para instalar",
     problem_damaged: "Este arquivo de instalação está danificado: {error}. Baixe-o novamente.",
+    downgrade_title: "Instalar uma versão anterior do {name}?",
+    downgrade_subtitle: "O {name} {old_version} está instalado e é mais recente que a versão {version}. Esta versão vai substituí-lo e seus dados serão mantidos.",
+    downgrade_button: "Instalar mesmo assim",
+    close_app: "Fechar e continuar",
+    error_close_app: "O {name} não fechou. Salve seu trabalho, feche-o e tente novamente.",
+    requirement_title: "É preciso ter {requirement}",
+    requirement_subtitle: "O {name} precisa de {requirement} para funcionar. Instale-o e depois volte aqui.",
+    requirement_button: "Obter {requirement}",
+    step_downloading: "Baixando a atualização",
+    error_download: "Não foi possível baixar a atualização. {error}",
+    website: "Site",
+    feedback: "Conte-nos o motivo",
 };

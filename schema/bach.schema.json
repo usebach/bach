@@ -1,0 +1,3549 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json",
+  "title": "bach.toml",
+  "description": "How Bach builds a Windows installer. Every setting: https://github.com/usebach/bach/blob/main/docs/config.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "app",
+    "files"
+  ],
+  "properties": {
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "publisher",
+        "executable"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The app's name, as people see it."
+        },
+        "version": {
+          "type": "string",
+          "description": "Like 1.2.0 or 2.0.0-beta.1."
+        },
+        "publisher": {
+          "type": "string"
+        },
+        "executable": {
+          "type": "string",
+          "description": "The program to start, relative to [files] source.",
+          "pattern": "\\.[eE][xX][eE]$"
+        },
+        "id": {
+          "type": "string",
+          "description": "Identifies the install across versions. Never change it after a release."
+        },
+        "description": {
+          "type": "string",
+          "description": "One line: the shortcut's tooltip and the install page's subtitle."
+        },
+        "website": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "icon": {
+          "type": "string",
+          "description": "A .ico file.",
+          "pattern": "\\.[iI][cC][oO]$"
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "The folder whose contents are installed."
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "installer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "output": {
+          "type": "string",
+          "description": "Default dist/{name}-Setup-{version}.exe."
+        },
+        "folder": {
+          "type": "string"
+        },
+        "theme": {
+          "enum": [
+            "system",
+            "light",
+            "dark"
+          ]
+        },
+        "accent": {
+          "type": "string",
+          "pattern": "^#?[0-9a-fA-F]{6}$"
+        },
+        "logo": {
+          "type": "string",
+          "description": "An .svg or .png file, or \"none\"."
+        },
+        "logo_height": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 96
+        },
+        "compression": {
+          "enum": [
+            "best",
+            "normal",
+            "fast"
+          ]
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "en",
+              "de",
+              "nl",
+              "fr",
+              "es",
+              "it",
+              "pt",
+              "pl",
+              "ru",
+              "tr",
+              "ja",
+              "ko",
+              "zh"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "license": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ],
+          "description": "A UTF-8 text file to accept first, or one per language."
+        },
+        "desktop_shortcut": {
+          "description": "true: offered, ticked. false: offered, unticked. \"always\": done without asking. \"never\": not done.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "always",
+                "never"
+              ]
+            }
+          ]
+        },
+        "start_menu_shortcut": {
+          "description": "true: offered, ticked. false: offered, unticked. \"always\": done without asking. \"never\": not done.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "always",
+                "never"
+              ]
+            }
+          ]
+        },
+        "start_with_windows": {
+          "description": "true: offered, ticked. false: offered, unticked. \"always\": done without asking. \"never\": not done.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "always",
+                "never"
+              ]
+            }
+          ]
+        },
+        "add_to_path": {
+          "description": "true: offered, ticked. false: offered, unticked. \"always\": done without asking. \"never\": not done.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "always",
+                "never"
+              ]
+            }
+          ]
+        },
+        "path_folder": {
+          "type": "string"
+        },
+        "change_folder": {
+          "type": "boolean"
+        },
+        "open_button": {
+          "type": "boolean"
+        },
+        "start_menu_folder": {
+          "type": "string"
+        },
+        "website_button": {
+          "type": "boolean"
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "files"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$"
+          },
+          "title": {
+            "description": "Text for every language, or a table of texts by language code.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "enum": [
+                    "en",
+                    "de",
+                    "nl",
+                    "fr",
+                    "es",
+                    "it",
+                    "pt",
+                    "pl",
+                    "ru",
+                    "tr",
+                    "ja",
+                    "ko",
+                    "zh"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "minProperties": 1
+              }
+            ]
+          },
+          "description": {
+            "description": "Text for every language, or a table of texts by language code.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "propertyNames": {
+                  "enum": [
+                    "en",
+                    "de",
+                    "nl",
+                    "fr",
+                    "es",
+                    "it",
+                    "pt",
+                    "pl",
+                    "ru",
+                    "tr",
+                    "ja",
+                    "ko",
+                    "zh"
+                  ]
+                },
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "minProperties": 1
+              }
+            ]
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "default": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "protocols": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scheme"
+        ],
+        "properties": {
+          "scheme": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "file_types": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "extension"
+        ],
+        "properties": {
+          "extension": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "webview2",
+              "dotnet",
+              "vcredist",
+              "file",
+              "registry"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+$"
+          },
+          "desktop": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https://"
+          }
+        }
+      }
+    },
+    "shortcuts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "target"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "updates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feed"
+      ],
+      "properties": {
+        "feed": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "download_url": {
+          "type": "string",
+          "pattern": "^https://"
+        }
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "window_install": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "window_remove": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "install_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "install_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "install_button": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "reinstall_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "reinstall_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "reinstall_button": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "update_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "update_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "update_button": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "remove_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "remove_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "remove_button": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "license_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "license_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "license_accept": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "cancel": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "close": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "retry": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "change": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "open": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "open_short": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "footer": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "preview": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "location": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "choose_folder": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "desktop_shortcut": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "desktop_shortcut_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "start_menu": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "start_menu_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "start_with_windows": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "start_with_windows_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "add_to_path": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "add_to_path_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "delete_data": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "delete_data_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "installing": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "updating": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "removing": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_preparing": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_copying": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_tidying": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_uninstaller": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_shortcuts": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_registering": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_removing": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_removing_shortcuts": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_unregistering": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_deleting_data": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_cleaning": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_done": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "installed_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "installed_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "installed_subtitle_plain": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "updated_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "removed_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "removed_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "removed_data_deleted": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "removed_data_kept": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "install_failed": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "update_failed": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "remove_failed": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_still_open": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_in_use": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_busy": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_disk_full": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_no_access": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_create": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_write": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_delete": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_read_setup": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_damaged": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_uninstaller": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_shortcut": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_register": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_unregister": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_system": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_delete_data": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_not_found": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_open_failed": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "problem_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "problem_damaged": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "downgrade_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "downgrade_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "downgrade_button": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "close_app": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_close_app": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "requirement_title": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "requirement_subtitle": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "requirement_button": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "step_downloading": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "error_download": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "website": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "feedback": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        }
+      }
+    },
+    "uninstall": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^%(APPDATA|LOCALAPPDATA|USERPROFILE)%[\\\\/].+"
+          }
+        },
+        "data_description": {
+          "description": "Text for every language, or a table of texts by language code.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "propertyNames": {
+                "enum": [
+                  "en",
+                  "de",
+                  "nl",
+                  "fr",
+                  "es",
+                  "it",
+                  "pt",
+                  "pl",
+                  "ru",
+                  "tr",
+                  "ja",
+                  "ko",
+                  "zh"
+                ]
+              },
+              "additionalProperties": {
+                "type": "string"
+              },
+              "minProperties": 1
+            }
+          ]
+        },
+        "feedback_url": {
+          "type": "string",
+          "pattern": "^https://"
+        }
+      }
+    }
+  }
+}

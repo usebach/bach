@@ -55,25 +55,34 @@ crates/pack     bach-pack: bach.toml (config/), manifest (manifest.rs and
                 window text in 13 languages), archive.rs, container.rs (the
                 payload on the exe), paths.rs (safety rules)
 crates/cli      bach-cli, binary `bach`: commands, runtime lookup and
-                download, doctor, output, Windows resources
+                download, doctor, init's stack detection (detect.rs), the
+                update feed (feed.rs), winget manifests, Windows resources
 crates/setup    bach-setup: the installer window
   src/launch.rs   what this run is (install, remove, preview, silent)
   src/silent.rs   --silent: the same jobs without a window
   src/package.rs  the payload read from its own file
   src/start.rs    fresh install or update, and the choices to start from
   src/texts.rs    built-in texts + the developer's [text], filled in
-  src/view.rs     window state; pages/ draws it
+  src/view.rs     window state; pages/ draws it; actions.rs (links,
+                  requirements, close the app), keyboard.rs (Tab, Space, Esc)
+  src/updater.rs  --check-update / --update from the installed app
+  src/log.rs      %TEMP%\<id>-setup.log
   src/work/       install (place.rs: all-or-nothing swap), remove, preview
   src/system/     shortcuts, Settings › Apps, known folders; host.rs
                   (languages, free space, lock), env_path.rs (PATH),
-                  integration.rs (autostart, link schemes, file types)
+                  integration.rs (autostart, link schemes, file types),
+                  apps.rs (Restart Manager, open a link, requirements)
   src/ui/         UI primitives (buttons, rows, checkbox, motion, …)
   assets/         Inter, Tabler icons, the Bach mark's petals
 examples/hello  a tiny app and the bach.toml that packages it
 skills/bach     SKILL.md: how agents install and use Bach (skills.sh)
+schema/         bach.schema.json for editors (a test keeps it complete)
+scoop/          Bach's own Scoop manifest (the release updates it)
+action.yml      the GitHub Action
 docs/           getting started, config reference, how it works, signing
 scripts/        build-release.ps1, build-example.ps1, release and asset scripts
-install.ps1/.sh one-line installs of bach without Rust
+install.ps1/.sh one-line installs of bach without Rust (never into a
+                folder they didn't make: Programs\Bach may be another app)
 ```
 
 ## Commands
@@ -85,6 +94,7 @@ cargo run -p bach-setup -- --preview --uninstall --theme dark --lang de
 cargo run -p bach-cli -- doctor examples/hello/bach.toml
 cargo test --workspace
 cargo clippy --workspace --all-targets        # must be warning-free
+powershell -ExecutionPolicy Bypass -File scripts\e2e.ps1   # real install/update/uninstall of a throwaway app
 powershell -ExecutionPolicy Bypass -File scripts\build-example.ps1   # dist\Hello-Setup-1.0.0.exe
 powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1   # dist\bach-<version>-windows-x64.zip
 gh workflow run release.yml -f bump=minor     # changelog, zip, GitHub release

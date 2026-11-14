@@ -38,6 +38,7 @@ pub struct FormButton {
     variant: Variant,
     disabled: bool,
     pending: bool,
+    focused: bool,
     on_click: Option<ClickHandler>,
 }
 
@@ -49,6 +50,7 @@ impl FormButton {
             variant: Variant::Primary,
             disabled: false,
             pending: false,
+            focused: false,
             on_click: None,
         }
     }
@@ -73,6 +75,12 @@ impl FormButton {
     /// Waiting on the work it started: a spinner, and no more clicks.
     pub fn pending(mut self, pending: bool) -> Self {
         self.pending = pending;
+        self
+    }
+
+    /// Draws the keyboard focus ring around it.
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.focused = focused;
         self
     }
 
@@ -133,7 +141,19 @@ impl RenderOnce for FormButton {
             .font_weight(FontWeight::MEDIUM)
             .whitespace_nowrap()
             .children(self.pending.then(|| Spinner::new().size(14.).color(fg)))
-            .child(self.label);
+            .child(self.label)
+            // A ring 2px outside the button, like a browser's focus outline.
+            .children(self.focused.then(|| {
+                div()
+                    .absolute()
+                    .top(px(-4.))
+                    .left(px(-4.))
+                    .right(px(-4.))
+                    .bottom(px(-4.))
+                    .rounded(RADIUS + px(4.))
+                    .border_2()
+                    .border_color(theme.ring)
+            }));
         if let Some(border) = border {
             button = button.border_1().border_color(border);
         }

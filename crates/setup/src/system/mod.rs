@@ -10,6 +10,7 @@
 //! - [`env_path`]: adding the app to the user's `PATH`, and taking it off.
 //! - [`integration`]: starting with Windows, link schemes and file types.
 
+pub mod apps;
 pub mod env_path;
 pub mod host;
 pub mod integration;
@@ -64,23 +65,47 @@ pub fn default_install_dir(folder: &str) -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from(r"C:\").join(folder))
 }
 
-/// The shortcut's file name: the app's name, minus anything Windows
-/// doesn't allow in a file name.
-fn shortcut_name(manifest: &Manifest) -> String {
-    let name: String = manifest
-        .app
-        .name
+/// A shortcut's file name: `name`, minus anything Windows doesn't allow in
+/// a file name (or the app id, if nothing is left).
+fn link_name(name: &str, fallback: &str) -> String {
+    let name: String = name
         .chars()
         .map(|c| if r#"<>:"/\|?*"#.contains(c) || c.is_control() { ' ' } else { c })
         .collect();
     let name = name.trim().trim_end_matches('.');
-    let name = if name.is_empty() { manifest.app.id.as_str() } else { name };
+    let name = if name.is_empty() { fallback } else { name };
     format!("{name}.lnk")
+}
+
+fn shortcut_name(manifest: &Manifest) -> String {
+    link_name(&manifest.app.name, &manifest.app.id)
+}
+
+/// The app's folder in the Start menu: `installer.start_menu_folder`, or
+/// the Start menu itself.
+pub fn start_menu_folder(manifest: &Manifest) -> Result<PathBuf> {
+    let programs = known_folder(&FOLDERID_Programs)?;
+    Ok(match &manifest.install.start_menu_folder {
+        Some(folder) => programs.join(folder),
+        None => programs,
+    })
 }
 
 /// Where the Start menu shortcut goes.
 pub fn start_menu_shortcut(manifest: &Manifest) -> Result<PathBuf> {
-    Ok(known_folder(&FOLDERID_Programs)?.join(shortcut_name(manifest)))
+    Ok(start_menu_folder(manifest)?.join(shortcut_name(manifest)))
+}
+
+/// Where each of `[[shortcuts]]` goes, with its manifest entry.
+pub fn extra_shortcuts(manifest: &Manifest) -> Vec<(PathBuf, &bach_pack::manifest::Shortcut)> {
+    let Ok(folder) = start_menu_folder(manifest) else {
+        return Vec::new();
+    };
+    manifest
+        .shortcuts
+        .iter()
+        .map(|shortcut| (folder.join(link_name(&shortcut.name, &manifest.app.id)), shortcut))
+        .collect()
 }
 
 /// Where the desktop shortcut goes (the desktop may live in OneDrive).
@@ -102,6 +127,11 @@ fn known_folder(id: &GUID) -> Result<PathBuf> {
 
 /// Writes a `.lnk` at `link` that starts `target` in its own folder.
 pub fn create_shortcut(link: &Path, target: &Path, description: &str) -> Result<()> {
+    create_shortcut_with(link, target, None, description)
+}
+
+/// [`create_shortcut`] with command-line arguments.
+pub fn create_shortcut_with(link: &Path, target: &Path, arguments: Option<&str>, description: &str) -> Result<()> {
     if let Some(parent) = link.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -115,6 +145,9 @@ pub fn create_shortcut(link: &Path, target: &Path, description: &str) -> Result<
             shell_link.SetWorkingDirectory(&HSTRING::from(dir.as_os_str()))?;
         }
         shell_link.SetDescription(&HSTRING::from(description))?;
+        if let Some(arguments) = arguments {
+            shell_link.SetArguments(&HSTRING::from(arguments))?;
+        }
         shell_link.SetIconLocation(&HSTRING::from(target.as_os_str()), 0)?;
         let file: IPersistFile = shell_link.cast()?;
         file.Save(&HSTRING::from(link.as_os_str()), true)?;

@@ -4,6 +4,7 @@ use bach_pack::i18n::Key;
 use gpui::{div, px, AnyElement, Context, IntoElement, ParentElement, SharedString, Styled};
 
 use super::{footer, page_icon, subtitle_text, PageLayout};
+use crate::keyboard::Target;
 use crate::theme::{ActiveTheme, Theme};
 use crate::ui::prelude::*;
 use crate::view::SetupView;
@@ -41,12 +42,29 @@ impl SetupView {
     pub(super) fn done_page(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let theme = cx.theme().clone();
         let texts = self.texts.clone();
+        let close_focused = self.is_focused(Target::Cancel);
         let close = |primary: bool, cx: &mut Context<Self>| {
             let button = FormButton::new("setup-close", texts.get(Key::close))
+                .focused(close_focused)
                 .on_click(cx.listener(|this, _, _, cx| this.close(cx)));
             if primary { button } else { button.outline() }.into_any_element()
         };
         let done_icon = page_icon("circle-check-filled", theme.foreground);
+        // The website after installing, the feedback page after removing.
+        let link = self.done_link().map(|_| {
+            let label = if self.is_removing() { texts.get(Key::feedback) } else { texts.get(Key::website) };
+            FormButton::new("setup-link", label)
+                .outline()
+                .focused(self.is_focused(Target::Link))
+                .on_click(cx.listener(|this, _, _, _| {
+                    if this.is_removing() {
+                        this.open_feedback()
+                    } else {
+                        this.open_website()
+                    }
+                }))
+                .into_any_element()
+        });
         if self.is_removing() {
             let has_data = !self.package.manifest.uninstall.data.is_empty();
             let subtitle = match (has_data, self.delete_data) {
@@ -58,7 +76,10 @@ impl SetupView {
                 centered: true,
                 mark: Some(done_icon),
                 subtitle: Some(subtitle_text(subtitle, &theme)),
-                ..PageLayout::new(texts.get(Key::removed_title), footer(None, vec![close(true, cx)], &theme))
+                ..PageLayout::new(
+                    texts.get(Key::removed_title),
+                    footer(None, link.into_iter().chain([close(true, cx)]).collect(), &theme),
+                )
             }
             .render();
         }
@@ -69,10 +90,12 @@ impl SetupView {
         } else {
             texts.get(Key::installed_subtitle_plain)
         };
-        let mut buttons = vec![close(!manifest.install.open_button, cx)];
+        let mut buttons: Vec<AnyElement> = link.into_iter().collect();
+        buttons.push(close(!manifest.install.open_button, cx));
         if manifest.install.open_button {
             buttons.push(
                 FormButton::new("setup-open", open_label(&texts))
+                    .focused(self.is_focused(Target::Primary))
                     .on_click(cx.listener(|this, _, _, cx| this.open_app(cx)))
                     .into_any_element(),
             );
@@ -107,11 +130,22 @@ impl SetupView {
                     vec![
                         FormButton::new("setup-close", texts.get(Key::close))
                             .outline()
+                            .focused(self.is_focused(Target::Cancel))
                             .on_click(cx.listener(|this, _, _, cx| this.close(cx)))
                             .into_any_element(),
-                        FormButton::new("setup-retry", texts.get(Key::retry))
-                            .on_click(cx.listener(|this, _, _, cx| this.start(cx)))
-                            .into_any_element(),
+                        if self.app_is_open() {
+                            // The app holds its files: offer to close it.
+                            FormButton::new("setup-close-app", texts.get(Key::close_app))
+                                .pending(self.closing_app)
+                                .focused(self.is_focused(Target::Primary))
+                                .on_click(cx.listener(|this, _, _, cx| this.close_app_and_retry(cx)))
+                                .into_any_element()
+                        } else {
+                            FormButton::new("setup-retry", texts.get(Key::retry))
+                                .focused(self.is_focused(Target::Primary))
+                                .on_click(cx.listener(|this, _, _, cx| this.start(cx)))
+                                .into_any_element()
+                        },
                     ],
                     &theme,
                 ),

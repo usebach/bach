@@ -130,6 +130,13 @@ jobs:
             $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
             "$hash  $(Split-Path -Leaf $file)" | Set-Content -NoNewline "$file.sha256"
           }
+          # The Scoop manifest in the repository points at this release.
+          $version = "${{ steps.version.outputs.version }}"
+          $scoop = Get-Content scoop/bach.json -Raw | ConvertFrom-Json
+          $scoop.version = $version
+          $scoop.url = "https://github.com/usebach/bach/releases/download/v$version/bach-$version-windows-x64.zip"
+          $scoop.hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+          ($scoop | ConvertTo-Json -Depth 5) + "`n" | Set-Content -NoNewline -Encoding utf8NoBOM scoop/bach.json
 
       - name: Keep the dry run's files
         if: inputs.dry_run
@@ -152,7 +159,7 @@ jobs:
           $version = "${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock CHANGELOG.md
+          git add Cargo.toml Cargo.lock CHANGELOG.md scoop/bach.json
           git commit -m "Release v$version"
           if ($LASTEXITCODE -ne 0) { throw "Couldn't commit the release." }
           git tag -a "v$version" -m "Bach $version"
@@ -243,3 +250,42 @@ jobs:
         run: |
           name="bach-${{ needs.release.outputs.version }}-${{ matrix.name }}"
           gh release upload "v${{ needs.release.outputs.version }}" "dist/$name.tar.gz" "dist/$name.tar.gz.sha256" --repo "${{ github.repository }}"
+
+  # bach and bach-setup for Windows on ARM, built natively.
+  windows-arm64:
+    name: bach for windows-arm64
+    needs: release
+    if: ${{ !inputs.dry_run }}
+    runs-on: windows-11-arm
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v${{ needs.release.outputs.version }}
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+
+      - name: Build and pack bach
+        shell: pwsh
+        run: |
+          cargo build --release -p bach-cli -p bach-setup
+          if ($LASTEXITCODE -ne 0) { throw 'The ARM64 build failed.' }
+          $name = "bach-${{ needs.release.outputs.version }}-windows-arm64"
+          New-Item -ItemType Directory -Force -Path "dist/$name" | Out-Null
+          Copy-Item target/release/bach.exe, target/release/bach-setup.exe, LICENSE -Destination "dist/$name"
+          Compress-Archive -Path "dist/$name/*" -DestinationPath "dist/$name.zip"
+          $hash = (Get-FileHash -Algorithm SHA256 "dist/$name.zip").Hash.ToLower()
+          "$hash  $name.zip" | Set-Content -NoNewline "dist/$name.zip.sha256"
+
+      - name: Add it to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $name = "bach-${{ needs.release.outputs.version }}-windows-arm64"
+          gh release upload "v${{ needs.release.outputs.version }}" "dist/$name.zip" "dist/$name.zip.sha256" --repo "${{ github.repository }}"

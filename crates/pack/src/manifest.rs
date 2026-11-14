@@ -16,10 +16,12 @@ use crate::i18n::{self, Key, Localized};
 use crate::paths;
 
 mod choices;
+pub mod extras;
 pub(crate) mod features;
 mod validate;
 
 pub use choices::{Choice, Choices, OPTION_AUTOSTART, OPTION_DESKTOP, OPTION_PATH, OPTION_START_MENU};
+pub use extras::{Check, FeedEntry, Requirement, Shortcut, Updates};
 pub use features::{Component, FileType, Protocol};
 pub use validate::MAX_LICENSE;
 
@@ -56,6 +58,19 @@ pub struct Manifest {
     /// offers the same choices and the uninstaller knows what to undo.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chosen: Option<Choices>,
+    /// What the app needs on the computer first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub requirements: Vec<Requirement>,
+    /// Start menu shortcuts besides the app's own.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shortcuts: Vec<Shortcut>,
+    /// Where the installed app checks for updates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updates: Option<Updates>,
+    /// SHA-256 of the archive as appended, checked before unpacking. Not
+    /// carried by an installed uninstaller, which has no archive.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -96,6 +111,13 @@ pub struct Install {
     /// Whether the last page offers to open the app.
     #[serde(default = "yes")]
     pub open_button: bool,
+    /// A folder in the Start menu for the shortcuts, like the publisher's
+    /// name; None puts them at the top level.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_menu_folder: Option<String>,
+    /// Whether the last page links to `app.website`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub website_button: bool,
 }
 
 fn yes() -> bool {
@@ -110,6 +132,9 @@ pub struct Uninstall {
     /// What lives in them, in a few words. Newer setup files keep this in
     /// `[text] delete_data_description` instead.
     pub data_description: Option<String>,
+    /// A page (https) the last page of the uninstaller links to, to ask why.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub feedback_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -122,6 +147,13 @@ pub struct Look {
     /// No logo at all, not even the Bach mark.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub hide_logo: bool,
+    /// The logo's height in points (32 to 96); 56 when None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo_height: Option<u16>,
+    /// A PNG logo's width divided by its height, so a wide logo keeps its
+    /// shape; the SVG and square logos leave it out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logo_aspect: Option<f32>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -219,6 +251,7 @@ impl Manifest {
         let mut installed = self.clone();
         installed.files.retain(|file| choices.installs(file));
         installed.chosen = Some(choices.clone());
+        installed.archive_sha256 = None;
         installed
     }
 
@@ -271,10 +304,13 @@ pub(crate) fn sample() -> Manifest {
             path_folder: None,
             change_folder: true,
             open_button: true,
+            start_menu_folder: None,
+            website_button: false,
         },
         uninstall: Uninstall {
             data: vec![r"%APPDATA%\Hello".into()],
             data_description: Some("Settings.".into()),
+            feedback_url: None,
         },
         look: Look::default(),
         files: vec![
@@ -292,6 +328,10 @@ pub(crate) fn sample() -> Manifest {
         file_types: vec![FileType { extension: ".hello".into(), description: Some("Hello note".into()) }],
         locale: Locale::default(),
         chosen: None,
+        requirements: Vec::new(),
+        shortcuts: vec![Shortcut { name: "Hello Docs".into(), target: "hello.exe".into(), arguments: Some("--docs".into()), description: None }],
+        updates: None,
+        archive_sha256: None,
     }
 }
 

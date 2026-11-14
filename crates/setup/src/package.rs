@@ -69,8 +69,10 @@ impl Package {
                 path_folder: None,
                 change_folder: true,
                 open_button: true,
+                start_menu_folder: None,
+                website_button: false,
             },
-            uninstall: manifest::Uninstall { data: vec![r"%APPDATA%\Sample".into()], data_description: None },
+            uninstall: manifest::Uninstall { data: vec![r"%APPDATA%\Sample".into()], data_description: None, feedback_url: None },
             look: manifest::Look::default(),
             files: vec![FileEntry::new("sample.exe", 48 << 20)],
             components: Vec::new(),
@@ -78,6 +80,10 @@ impl Package {
             file_types: Vec::new(),
             locale: manifest::Locale::default(),
             chosen: None,
+            requirements: Vec::new(),
+            shortcuts: Vec::new(),
+            updates: None,
+            archive_sha256: None,
         };
         Self { manifest, exe: PathBuf::new(), layout: None, logo: None }
     }

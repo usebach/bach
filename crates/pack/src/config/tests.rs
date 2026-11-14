@@ -180,3 +180,98 @@ fn hex_colours() {
     assert_eq!(parse_hex("FFFFFF"), Some(0xffffff));
     assert_eq!(parse_hex("#fff"), None);
 }
+
+#[test]
+fn requirements_shortcuts_and_updates() {
+    let dir = project_dir("extras");
+    let app = MINIMAL.replace("[files]", "website = \"https://hello.example\"\n[files]");
+    let text = format!(
+        r#"{app}
+        [installer]
+        start_menu_folder = "Example"
+        website_button = true
+        logo_height = 72
+
+        [[requirements]]
+        kind = "webview2"
+
+        [[requirements]]
+        kind = "dotnet"
+        version = "8.0"
+        desktop = true
+
+        [[shortcuts]]
+        name = "Hello Docs"
+        target = "sub/data.txt"
+        arguments = "--docs"
+
+        [updates]
+        feed = "https://hello.example/latest.json"
+        download_url = "https://hello.example/{{file}}"
+
+        [uninstall]
+        feedback_url = "https://hello.example/why"
+        "#
+    );
+    let project = parse(&text, &dir).unwrap();
+    let manifest = &project.manifest;
+    assert_eq!(manifest.requirements.len(), 2);
+    assert_eq!(manifest.requirements[0].name, "Microsoft Edge WebView2");
+    assert_eq!(manifest.shortcuts[0].target, "sub/data.txt");
+    assert_eq!(manifest.install.start_menu_folder.as_deref(), Some("Example"));
+    assert!(manifest.install.website_button);
+    assert_eq!(manifest.look.logo_height, Some(72));
+    assert_eq!(manifest.updates.as_ref().unwrap().feed, "https://hello.example/latest.json");
+    assert_eq!(project.update_download_url.as_deref(), Some("https://hello.example/{file}"));
+    assert_eq!(manifest.uninstall.feedback_url.as_deref(), Some("https://hello.example/why"));
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn extras_name_their_setting() {
+    let dir = project_dir("extras-mistakes");
+    let cases = [
+        (r#"[[requirements]]
+kind = "java""#, "requirements[0].kind"),
+        (r#"[[requirements]]
+kind = "dotnet"
+version = "8""#, "requirements[0].version"),
+        (r#"[[requirements]]
+kind = "file"
+path = 'C:\x.dll'"#, "requirements[0].name"),
+        (r#"[[requirements]]
+kind = "registry"
+key = 'HKCR\x'
+name = "x"
+url = "https://x""#, "requirements[0].key"),
+        (r#"[[shortcuts]]
+name = "Docs"
+target = "nope.exe""#, "shortcuts[0].target"),
+        (r#"[[shortcuts]]
+name = "a/b"
+target = "hello.exe""#, "shortcuts[0].name"),
+        (r#"[updates]
+feed = "http://insecure""#, "updates.feed"),
+        ("[installer]\nlogo_height = 200", "installer.logo_height"),
+        ("[installer]\nwebsite_button = true", "installer.website_button"),
+        ("[uninstall]\nfeedback_url = \"ftp://x\"", "uninstall.feedback_url"),
+    ];
+    for (extra, key) in cases {
+        let err = format!("{:#}", parse(&format!("{MINIMAL}\n{extra}"), &dir).unwrap_err());
+        assert!(err.contains(key), "expected {key} in: {err}");
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The editor schema (schema/bach.schema.json) knows every text and
+/// language, so autocompletion never misses one.
+#[test]
+fn the_schema_knows_every_text() {
+    let schema: serde_json::Value = serde_json::from_str(include_str!("../../../../schema/bach.schema.json")).unwrap();
+    let texts = &schema["properties"]["text"]["properties"];
+    for key in Key::ALL {
+        assert!(texts.get(key.name()).is_some(), "schema has no text.{}", key.name());
+    }
+    let languages = schema["properties"]["installer"]["properties"]["languages"]["items"]["enum"].as_array().unwrap();
+    assert_eq!(languages.len(), crate::i18n::LANGUAGES.len());
+}

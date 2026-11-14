@@ -10,11 +10,12 @@
 
 mod finish;
 mod ready;
+mod requirement;
 
 use bach_pack::i18n::Key;
 use gpui::{
-    div, img, px, AnyElement, Context, ElementId, FontWeight, IntoElement, ObjectFit, ParentElement, Render,
-    SharedString, Styled, StyledImage, Window,
+    div, img, px, AnyElement, Context, ElementId, FontWeight, InteractiveElement, IntoElement, KeyDownEvent,
+    ObjectFit, ParentElement, Render, SharedString, Styled, StyledImage, Window,
 };
 
 use crate::assets::LOGO_PATH;
@@ -30,9 +31,14 @@ pub use ready::row_count;
 const MARK_SLOT: f32 = 56.;
 
 impl Render for SetupView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
+        // The scrollbar needs the card's size, known after its first paint.
+        if matches!(self.stage, Stage::Ready) && self.choices_scroll.bounds().size.height < px(1.) {
+            window.request_animation_frame();
+        }
         let (kind, body) = match self.stage.clone() {
+            Stage::Requirement(index) => ("requirement", self.requirement_page(index, cx)),
             Stage::License => ("license", self.license_page(cx)),
             Stage::Ready => ("ready", self.ready_page(cx)),
             Stage::Working { progress, label } => ("working", self.working_page(progress, label, &theme)),
@@ -40,7 +46,11 @@ impl Render for SetupView {
             Stage::Failed(message) => ("failed", self.failed_page(message, cx)),
         };
         let page_id = ElementId::Name(format!("setup-page-{kind}-{}", self.attempt).into());
-        frame(Appear::new(page_id, PAGE_ENTER, body).flex_1().min_h_0().flex().flex_col(), &theme)
+        div()
+            .size_full()
+            .track_focus(&self.focus_handle)
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| this.on_key(event, window, cx)))
+            .child(frame(Appear::new(page_id, PAGE_ENTER, body).flex_1().min_h_0().flex().flex_col(), &theme))
     }
 }
 
@@ -62,14 +72,19 @@ impl SetupView {
         if self.package.manifest.look.hide_logo {
             return None;
         }
+        let look = &self.package.manifest.look;
+        let height = look.logo_height.map_or(MARK_SLOT, f32::from);
+        // A wide logo keeps its shape, up to the width of the column.
+        let width = (height * look.logo_aspect.unwrap_or(1.0)).clamp(height * 0.25, 420.);
         Some(match &self.package.logo {
             Some(Logo::Svg(_)) => gpui::svg()
                 .path(LOGO_PATH)
-                .size(px(MARK_SLOT))
+                .size(px(height))
                 .text_color(theme.foreground)
                 .into_any_element(),
             Some(Logo::Png(image)) => img(image.clone())
-                .size(px(MARK_SLOT))
+                .w(px(width))
+                .h(px(height))
                 .object_fit(ObjectFit::Contain)
                 .into_any_element(),
             None if working => BachMark::new("setup-mark").size(68.).slot(MARK_SLOT).into_any_element(),
@@ -128,10 +143,10 @@ impl PageLayout {
                     .flex_none()
                     .flex_col()
                     .items_center()
-                    .children(
-                        self.mark.map(|mark| div().size(px(MARK_SLOT)).flex().items_center().justify_center().child(mark)),
-                    )
-                    .child(div().mt(px(heading_gap)).max_w(px(460.)).text_heading().text_center().child(self.title))
+                    .children(self.mark.map(|mark| {
+                        div().min_w(px(MARK_SLOT)).min_h(px(MARK_SLOT)).flex().items_center().justify_center().child(mark)
+                    }))
+                    .child(heading(self.title).mt(px(heading_gap)))
                     .children(self.subtitle),
             )
             .children(content)
@@ -139,6 +154,15 @@ impl PageLayout {
             .child(self.footer)
             .into_any_element()
     }
+}
+
+/// The page heading; a long one (a long app name, a wordy language) steps
+/// down a size so it wraps onto two calm lines instead of three.
+fn heading(title: SharedString) -> gpui::Div {
+    let long = title.chars().count() > 30;
+    let heading = div().max_w(px(460.)).text_heading().text_center();
+    let heading = if long { heading.text_size(px(18.)).line_height(px(26.)) } else { heading };
+    heading.child(title)
 }
 
 /// An icon drawn in the mark's slot.

@@ -9,7 +9,7 @@ use bach_pack::i18n::Key;
 use bach_pack::manifest::{Choices, Manifest};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use gpui::{Context, SharedString, Task, Window};
+use gpui::{Context, FocusHandle, ScrollHandle, SharedString, Task, Window};
 
 use crate::launch::Mode;
 use crate::package::Package;
@@ -22,6 +22,8 @@ const FINISH_HOLD: Duration = Duration::from_millis(650);
 
 #[derive(Clone, Debug)]
 pub enum Stage {
+    /// Something the app needs is missing (a requirement, by index).
+    Requirement(usize),
     /// The license to accept before anything else.
     License,
     /// The first page: options and the go button.
@@ -58,24 +60,54 @@ pub struct SetupView {
     pub dir: PathBuf,
     pub choices: Choices,
     pub delete_data: bool,
+    /// The installed version is newer than this one.
+    pub downgrade: bool,
+    /// The license comes after the requirements are met.
+    pub license_pending: bool,
+    /// Waiting for the app to close after "Close and continue".
+    pub closing_app: bool,
     pub stage: Stage,
     /// Counts attempts, so each one's page and bar start fresh.
     pub attempt: usize,
+    /// Receives the keys; see `keyboard.rs`.
+    pub focus_handle: FocusHandle,
+    /// The control the keyboard is on, by its place in `targets()`. None
+    /// until Tab is pressed, so mouse users never see a focus ring.
+    pub focused: Option<usize>,
+    /// The card of choices, for its scrollbar and for keeping the focused
+    /// row in view.
+    pub choices_scroll: ScrollHandle,
     job: Option<Task<()>>,
     picker: Option<Task<()>>,
+    pub(crate) closer: Option<Task<()>>,
 }
 
 impl SetupView {
-    pub fn new(package: Arc<Package>, texts: Arc<Texts>, mode: Mode, preview: bool) -> Self {
+    pub fn new(package: Arc<Package>, texts: Arc<Texts>, mode: Mode, preview: bool, cx: &mut Context<Self>) -> Self {
         let manifest = &package.manifest;
-        let (existing, previous, dir, choices) = match &mode {
+        let (existing, previous, dir, choices, downgrade) = match &mode {
             Mode::Install => {
                 let start = crate::start::install(manifest);
-                (start.existing, start.previous, start.dir, start.choices)
+                (start.existing, start.previous, start.dir, start.choices, start.downgrade)
             }
-            Mode::Remove { dir } => (None, None, dir.clone(), Choices::default()),
+            Mode::Remove { dir } => (None, None, dir.clone(), Choices::default(), false),
         };
-        let stage = if needs_license(manifest, previous.as_ref(), &mode, &texts) { Stage::License } else { Stage::Ready };
+        // Screenshots for docs shouldn't show whose computer took them.
+        let dir = match std::env::var_os("BACH_PREVIEW_DIR") {
+            Some(shown) if preview => PathBuf::from(shown),
+            _ => dir,
+        };
+        let license_pending = needs_license(manifest, previous.as_ref(), &mode, &texts);
+        let missing = match &mode {
+            // Only reads, so a preview shows the page too.
+            Mode::Install => crate::start::missing_requirements(manifest).first().copied(),
+            _ => None,
+        };
+        let stage = match missing {
+            Some(index) => Stage::Requirement(index),
+            None if license_pending => Stage::License,
+            None => Stage::Ready,
+        };
         Self {
             package,
             texts,
@@ -85,10 +117,17 @@ impl SetupView {
             dir,
             choices,
             delete_data: false,
+            downgrade,
+            license_pending,
+            closing_app: false,
             stage,
             attempt: 0,
+            focus_handle: cx.focus_handle(),
+            focused: None,
+            choices_scroll: ScrollHandle::new(),
             job: None,
             picker: None,
+            closer: None,
         }
     }
 
@@ -133,7 +172,9 @@ impl SetupView {
 
     /// The license is accepted: on to the choices.
     pub fn accept_license(&mut self, cx: &mut Context<Self>) {
+        self.license_pending = false;
         self.stage = Stage::Ready;
+        self.focused = None;
         cx.notify();
     }
 
@@ -187,7 +228,12 @@ impl SetupView {
             }),
         };
         std::thread::spawn(move || {
+            let last = std::cell::RefCell::new(String::new());
             let report = |progress: f32, label: &str| {
+                if *last.borrow() != label {
+                    crate::log::line(label);
+                    *last.borrow_mut() = label.to_string();
+                }
                 sender.unbounded_send(Event::Progress(progress, label.to_string())).ok();
             };
             // A panic on the worker becomes a failed page, never a crash.
@@ -197,10 +243,15 @@ impl SetupView {
                 Job::Pretend { removing } => work::pretend(&texts, *removing, &report),
             }))
             .unwrap_or_else(|_| Err(texts.get(Key::error_damaged)));
+            match &result {
+                Ok(()) => crate::log::line("Finished."),
+                Err(message) => crate::log::line(&format!("Failed: {message}")),
+            }
             sender.unbounded_send(Event::Finished(result)).ok();
         });
 
         self.attempt = self.attempt.saturating_add(1);
+        self.focused = None;
         self.stage = Stage::Working { progress: 0.0, label: self.texts.get(Key::step_preparing).into() };
         cx.notify();
         self.job = Some(cx.spawn(async move |this, cx| {
@@ -224,6 +275,7 @@ impl SetupView {
                                 Ok(()) => Stage::Done,
                                 Err(message) => Stage::Failed(message.into()),
                             };
+                            this.focused = None;
                             this.job = None;
                             cx.notify();
                         })

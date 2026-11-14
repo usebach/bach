@@ -2,10 +2,14 @@
 
 use bach_pack::i18n::Key;
 use bach_pack::manifest::Manifest;
-use gpui::{div, px, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, SharedString, StatefulInteractiveElement, Styled};
+use gpui::{
+    div, px, AnyElement, Context, InteractiveElement, IntoElement, ParentElement, Pixels, SharedString,
+    StatefulInteractiveElement, Styled,
+};
 
 use super::{footer, subtitle_text, PageLayout};
-use crate::theme::{ActiveTheme, RADIUS};
+use crate::keyboard::Target;
+use crate::theme::{ActiveTheme, Theme, RADIUS};
 use crate::ui::prelude::*;
 use crate::view::{SetupView, Toggle};
 
@@ -66,9 +70,11 @@ impl SetupView {
         let buttons = vec![
             FormButton::new("setup-cancel", texts.get(Key::cancel))
                 .outline()
+                .focused(self.is_focused(Target::Cancel))
                 .on_click(cx.listener(|this, _, _, cx| this.close(cx)))
                 .into_any_element(),
             FormButton::new("setup-accept", texts.get(Key::license_accept))
+                .focused(self.is_focused(Target::Primary))
                 .on_click(cx.listener(|this, _, _, cx| this.accept_license(cx)))
                 .into_any_element(),
         ];
@@ -93,14 +99,30 @@ impl SetupView {
             .collect();
 
         let (title, subtitle, action) = self.ready_copy();
-        let go = FormButton::new("setup-go", action).on_click(cx.listener(|this, _, _, cx| this.start(cx)));
+        let go = FormButton::new("setup-go", action)
+            .focused(self.is_focused(Target::Primary))
+            .on_click(cx.listener(|this, _, _, cx| this.start(cx)));
         let go = if self.is_removing() { go.destructive() } else { go };
-        let choices = div()
+        // The card itself scrolls, so a focused row can be scrolled to by
+        // its index; the scrollbar sits over its right edge.
+        let list = div()
             .id("setup-choices")
+            .track_scroll(&self.choices_scroll)
+            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()))
+            .size_full()
+            .overflow_y_scroll()
+            .rounded(RADIUS)
+            .border_1()
+            .border_color(theme.border)
+            .children(rows);
+        let choices = div()
+            .relative()
             .mt(px(28.))
             .min_h_0()
-            .overflow_y_scroll()
-            .child(card(rows, cx));
+            .flex()
+            .flex_col()
+            .child(list)
+            .children(self.scrollbar(&theme));
         PageLayout {
             mark: self.mark(false, &theme),
             subtitle: subtitle.map(|text| subtitle_text(text, &theme)),
@@ -112,6 +134,7 @@ impl SetupView {
                     vec![
                         FormButton::new("setup-cancel", self.texts.get(Key::cancel))
                             .outline()
+                            .focused(self.is_focused(Target::Cancel))
                             .on_click(cx.listener(|this, _, _, cx| this.close(cx)))
                             .into_any_element(),
                         go.into_any_element(),
@@ -121,6 +144,46 @@ impl SetupView {
             )
         }
         .render()
+    }
+
+    /// A thin thumb showing where the card is scrolled, when it scrolls.
+    fn scrollbar(&self, theme: &Theme) -> Option<AnyElement> {
+        let handle = &self.choices_scroll;
+        let hidden = handle.max_offset().height;
+        let visible = handle.bounds().size.height;
+        if hidden < px(1.) || visible < px(1.) {
+            return None;
+        }
+        let total = visible + hidden;
+        let thumb = (visible * (visible / total)).max(px(24.));
+        let scrolled = (-handle.offset().y).max(px(0.)).min(hidden);
+        let inset = px(6.);
+        let track = visible - inset * 2. - thumb;
+        let top: Pixels = inset + track.max(px(0.)) * (scrolled / hidden);
+        Some(
+            div()
+                .absolute()
+                .top(top)
+                .right(px(3.))
+                .w(px(4.))
+                .h(thumb)
+                .rounded(px(2.))
+                .bg(theme.muted_foreground.opacity(0.45))
+                .into_any_element(),
+        )
+    }
+
+    /// What the keyboard can reach on each row, in order; None for a row it
+    /// skips (the Location row when the folder is fixed).
+    pub(crate) fn row_targets(&self) -> Vec<Option<Target>> {
+        self.choices()
+            .into_iter()
+            .map(|choice| match choice.action {
+                Action::Location if self.can_change_folder() => Some(Target::Location),
+                Action::Location => None,
+                Action::Toggle(toggle) => Some(Target::Toggle(toggle)),
+            })
+            .collect()
     }
 
     /// The rows of the card, in order.
@@ -169,7 +232,15 @@ impl SetupView {
     }
 
     fn row(&self, choice: Choice, index: usize, last: bool, cx: &mut Context<Self>) -> AnyElement {
-        let row = Row::new(choice.title).icon(choice.icon).divided(index > 0).last(last);
+        let target = match choice.action {
+            Action::Location => Target::Location,
+            Action::Toggle(toggle) => Target::Toggle(toggle),
+        };
+        let row = Row::new(choice.title)
+            .icon(choice.icon)
+            .divided(index > 0)
+            .last(last)
+            .focused(self.is_focused(target));
         let row = match choice.description {
             Some(description) => row.description(description),
             None => row,
@@ -216,6 +287,12 @@ impl SetupView {
                 };
                 (texts.get(Key::install_title).into(), subtitle.map(Into::into), texts.get(Key::install_button).into())
             }
+            // A newer version is installed: say so plainly before replacing it.
+            Some(installed) if self.downgrade => (
+                texts.get(Key::downgrade_title).into(),
+                Some(texts.with(Key::downgrade_subtitle, &[("old_version", installed.version.as_str())]).into()),
+                texts.get(Key::downgrade_button).into(),
+            ),
             Some(installed) if installed.version == version => (
                 texts.get(Key::reinstall_title).into(),
                 Some(texts.get(Key::reinstall_subtitle).into()),

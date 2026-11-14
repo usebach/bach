@@ -13,9 +13,14 @@ default, so a five-line config already builds a complete installer.
 - [`[[components]]`](#components): optional parts the user can leave out
 - [`[[protocols]]`](#protocols): links like `myapp://` that open your app
 - [`[[file_types]]`](#file_types): files your app opens
+- [`[[requirements]]`](#requirements): what the app needs on the computer first
+- [`[[shortcuts]]`](#shortcuts): more Start menu shortcuts
+- [`[updates]`](#updates): updates the installed app fetches itself
 - [`[text]`](#text): any text in the window, in any language
 - [`[uninstall]`](#uninstall): the user's data
 - [A complete example](#a-complete-example)
+- [Silent installs](#silent-installs) and [updating from the app](#updating-from-the-app)
+- [Editor support](#editor-support) and [listing your app in winget](#listing-your-app-in-winget)
 
 ## [app]
 
@@ -49,7 +54,8 @@ The source folder may not contain symbolic links or a file named
 | `output` | `dist/{name}-Setup-{version}.exe` | Where the setup file goes. `{name}`, `{version}` and `{id}` are filled in. |
 | `theme` | `system` | `system` follows Windows' light or dark setting, live. `light` or `dark` fixes it. |
 | `accent` | none (black / white) | A colour like `#2563eb` for buttons, the progress bar and ticked boxes. The button text picks black or white for contrast. |
-| `logo` | your icon, else the Bach mark | An `.svg` or `.png` shown at the top of the window, or `"none"` for no logo at all. An SVG is drawn in one colour that follows the theme; use a PNG for a full-colour logo. 56 × 56 points; give a PNG at least 112 px for sharp results. |
+| `logo` | your icon, else the Bach mark | An `.svg` or `.png` shown at the top of the window, or `"none"` for no logo at all. An SVG is drawn in one colour that follows the theme; use a PNG for a full-colour logo. A wide PNG (a wordmark) keeps its shape. Give a PNG twice the size it's shown at for sharp results. |
+| `logo_height` | `56` | The logo's height in points, 32 to 96. |
 | `compression` | `best` | `best` makes the smallest file, `normal` and `fast` build quicker. Unpacking is fast either way. `bach build --fast` overrides it once. |
 
 ### Where it installs
@@ -59,6 +65,8 @@ The source folder may not contain symbolic links or a file named
 | `folder` | the app id | The install folder's name under `%LOCALAPPDATA%\Programs`. When the user picks another place, this name is added to it. |
 | `change_folder` | `true` | Whether the user may pick another folder ("Change", or a click on the Location row). Updates always stay where they are. |
 | `open_button` | `true` | Whether the last page offers "Open My App". |
+| `start_menu_folder` | none | A folder in the Start menu for the shortcuts, like your company's name. Removed when it's empty after uninstalling. |
+| `website_button` | `false` | Whether the last page links to `app.website`. |
 
 ### Options
 
@@ -140,6 +148,70 @@ description = "My App document"     # optional
 
 Types that run code (`.exe`, `.bat`, `.ps1`, `.lnk`, …) are refused.
 
+## [[requirements]]
+
+Something your app needs on the computer before it runs. Setup only looks
+(read-only, no administrator rights), and when it's missing shows a page
+with a button to its download and a "Try again" that looks again. A silent
+install stops with exit code 1 instead.
+
+```toml
+[[requirements]]
+kind = "webview2"            # Tauri and WebView2 apps
+
+[[requirements]]
+kind = "dotnet"              # a .NET runtime
+version = "8.0"
+desktop = true               # the Windows Desktop runtime (WinForms, WPF)
+
+[[requirements]]
+kind = "vcredist"            # the Visual C++ 2015-2022 redistributable (x64)
+
+[[requirements]]
+kind = "file"                # any file; %VARIABLES% are filled in
+path = '%SystemRoot%\System32\vcruntime140.dll'
+name = "Visual C++ runtime"
+url = "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+
+[[requirements]]
+kind = "registry"            # any key under HKLM\ or HKCU\
+key = 'HKLM\SOFTWARE\Vendor\Thing'
+name = "Vendor Thing"
+url = "https://vendor.example/download"
+```
+
+`webview2`, `dotnet` and `vcredist` know their name and download page;
+`file` and `registry` need `name` and an `https` `url`.
+
+## [[shortcuts]]
+
+More Start menu shortcuts, next to the app's own: a second program in the
+install folder, or the app with arguments. They follow the Start menu box,
+and go away when their file isn't installed (an unticked component).
+
+```toml
+[[shortcuts]]
+name = "Hello Docs"
+target = "docs/viewer.exe"       # relative to [files] source
+arguments = "--welcome"           # optional
+description = "Read the manual"   # optional tooltip
+```
+
+## [updates]
+
+Lets the installed app update itself. `bach build` writes `latest.json`
+next to the setup file; upload both, and the app finds new versions.
+
+```toml
+[updates]
+feed = "https://example.com/hello/latest.json"
+download_url = "https://example.com/hello/{file}"   # {file}: the setup file's name
+```
+
+See [updating from the app](#updating-from-the-app) for how the app asks.
+Signing changes the setup file, and so its SHA-256: after signing, write the
+feed again with `bach feed SETUP.exe --url URL`.
+
 ## [text]
 
 Replaces any text the window shows. Give one text for every language, or a
@@ -196,6 +268,11 @@ a text is given in only one, `bach check` points it out.
 | `error_create`, `error_write`, `error_delete`, `error_shortcut`, `error_delete_data`, `error_not_found` (all `{path}`) | Errors about one file or folder; Windows' own reason follows them. |
 | `error_read_setup`, `error_damaged`, `error_uninstaller`, `error_register`, `error_unregister`, `error_system`, `error_open_failed` (`{error}`) | The rarer errors. |
 | `problem_title`, `problem_damaged` (`{error}`) | The page a damaged setup file shows. |
+| `downgrade_title`, `downgrade_subtitle` (`{old_version}`), `downgrade_button` | Installing over a newer version. |
+| `close_app`, `error_close_app` | "Close and continue", and what it says when the app won't close. |
+| `requirement_title`, `requirement_subtitle`, `requirement_button` (all `{requirement}`) | The page for a missing requirement. |
+| `step_downloading`, `error_download` (`{error}`) | Updating from the app. |
+| `website`, `feedback` | The link buttons on the last page. |
 
 `crates/pack/src/i18n/en.rs` has every English text in full, and the other
 files there every translation.
@@ -206,6 +283,7 @@ files there every translation.
 | --- | --- | --- |
 | `data` | none | Folders the app keeps its data in. The uninstaller offers "Also delete my data" (unticked) and deletes them only when the user ticks it. Each must start with `%APPDATA%`, `%LOCALAPPDATA%` or `%USERPROFILE%`, followed by your app's own folder, so the uninstaller can only ever delete inside the user's profile. |
 | `data_description` | a generic line | What lives in those folders, in a few words, shown under the checkbox. Text or `{ en = "…", de = "…" }`. |
+| `feedback_url` | none | An `https` page the uninstaller's last page links to ("Tell us why"). |
 
 Write Windows paths in TOML with single quotes so backslashes stay as they
 are: `data = ['%APPDATA%\My App']`.
@@ -274,7 +352,50 @@ Hello-Setup-1.4.0.exe --silent
 | `--dir PATH` | Install here instead of the default folder (a first install, when `change_folder` allows it). |
 | `--with a,b` / `--without a,b` | Tick or untick options: `desktop-shortcut`, `start-menu`, `autostart`, `path`, and component ids. Only options the install page would offer. |
 | `--lang CODE` | The language for messages, instead of Windows' own. |
+| `--allow-downgrade` | Install over a newer version (refused otherwise, with exit code 1). |
+| `--log FILE` | Where the log goes. By default every run writes `%TEMP%\<app id>-setup.log`. |
 
-A silent run accepts the license on the user's behalf. Settings › Apps runs
-`uninstall.exe --silent` for a quiet removal; add `--delete-data` to delete
-the user's data too.
+A silent run accepts the license on the user's behalf and stops when a
+requirement is missing. Settings › Apps runs `uninstall.exe --silent` for a
+quiet removal; add `--delete-data` to delete the user's data too.
+
+In the window, Tab and the arrow keys move between the choices and buttons,
+Space or Enter does what a click would, and Escape cancels. When the app is
+still open, the error page offers "Close and continue", which asks the app
+to close the way Windows Update does (it may ask to save first; nothing is
+killed).
+
+## Updating from the app
+
+With `[updates]`, the installed app can ask its own uninstaller, which
+knows the feed:
+
+```bash
+"%LOCALAPPDATA%\Programs\Hello\uninstall.exe" --check-update
+```
+
+exits with 10 when a newer version is out (and prints it), 0 when it's up to
+date. `--update` downloads it and opens its setup window; `--update --silent`
+installs it without a window and exits with the setup's own code. Downloads
+are https only, checked against the feed's SHA-256, and must be a setup file
+for the same app id, so a wrong or tampered file is never run.
+
+## Editor support
+
+`bach init` starts the file with
+
+```toml
+#:schema https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json
+```
+
+so editors with TOML support (VS Code with Even Better TOML, Zed, JetBrains
+with Taplo) complete every setting and flag typos as you type.
+
+## Listing your app in winget
+
+```bash
+bach winget dist/Hello-Setup-1.4.0.exe --url https://example.com/Hello-Setup-1.4.0.exe --license MIT
+```
+
+writes the three manifests the Windows Package Manager needs; check them
+with `winget validate` and open a pull request to microsoft/winget-pkgs.

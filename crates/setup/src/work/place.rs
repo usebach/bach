@@ -48,10 +48,15 @@ impl Transaction {
             fs::create_dir_all(parent)?;
         }
         let partial = with_suffix(target, NEW);
+        // No flush to disk per file: on an app with thousands of files that
+        // alone takes most of the install. The old files stay until every
+        // new one is written, and a run cut short by a power loss is undone
+        // by running setup again, which clears what it left.
         let written = (|| -> io::Result<()> {
-            let mut out = File::create(&partial)?;
+            let mut out = io::BufWriter::with_capacity(256 * 1024, File::create(&partial)?);
             archive::copy_counting(body, &mut out, progress)?;
-            out.sync_all()
+            out.into_inner().map_err(|err| err.into_error())?;
+            Ok(())
         })();
         match written {
             Ok(()) => {

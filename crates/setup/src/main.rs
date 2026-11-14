@@ -7,11 +7,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[cfg(windows)]
+mod actions;
+#[cfg(windows)]
 mod app;
 #[cfg(windows)]
 mod assets;
 #[cfg(windows)]
+mod keyboard;
+#[cfg(windows)]
 mod launch;
+#[cfg(windows)]
+mod log;
 #[cfg(windows)]
 mod package;
 #[cfg(windows)]
@@ -28,6 +34,8 @@ mod texts;
 mod theme;
 #[cfg(windows)]
 mod ui;
+#[cfg(windows)]
+mod updater;
 #[cfg(windows)]
 mod view;
 #[cfg(windows)]

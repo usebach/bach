@@ -95,6 +95,15 @@ pub fn details(manifest: &Manifest) {
         let keys: Vec<&str> = manifest.locale.text.keys().map(String::as_str).collect();
         field("Own texts", keys.join(", "));
     }
+    for requirement in &manifest.requirements {
+        field("Requires", &requirement.name);
+    }
+    for shortcut in &manifest.shortcuts {
+        field("Shortcut", format!("{} → {}", shortcut.name, shortcut.target));
+    }
+    if let Some(updates) = &manifest.updates {
+        field("Updates", &updates.feed);
+    }
     if !manifest.uninstall.data.is_empty() {
         field("Data", manifest.uninstall.data.join(", "));
     }

@@ -29,14 +29,14 @@ pub use checkbox::Checkbox;
 pub use form_button::FormButton;
 pub use icon::Icon;
 pub use progress_bar::ProgressBar;
-pub use row::{card, Row};
+pub use row::Row;
 pub use shimmer::Shimmer;
 pub use typography::TypeScale;
 
 /// Everything a page usually needs, in one import.
 pub mod prelude {
     pub use super::{
-        card, Appear, BachMark, Checkbox, FormButton, Icon, ProgressBar, Row, Shimmer, TypeScale,
+        Appear, BachMark, Checkbox, FormButton, Icon, ProgressBar, Row, Shimmer, TypeScale,
     };
 }
 

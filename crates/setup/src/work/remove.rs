@@ -48,11 +48,19 @@ pub fn remove(plan: &RemovePlan, report: Report) -> Result<(), String> {
     remove_empty_parents(dir, manifest.files.iter().map(|file| file.path.as_str()));
 
     report(0.4, &texts.get(Key::step_removing_shortcuts));
+    let extra = system::extra_shortcuts(manifest).into_iter().map(|(link, _)| link);
     for shortcut in [system::start_menu_shortcut(manifest), system::desktop_shortcut(manifest)]
         .into_iter()
         .flatten()
+        .chain(extra)
     {
         let _ = remove_file_if_present(&shortcut);
+    }
+    if manifest.install.start_menu_folder.is_some() {
+        // Only an empty folder goes: another app may share it.
+        if let Ok(folder) = system::start_menu_folder(manifest) {
+            let _ = fs::remove_dir(folder);
+        }
     }
     undo_integration(manifest, dir, &program, texts)?;
 

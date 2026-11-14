@@ -11,7 +11,7 @@ You don't need Rust. In PowerShell:
 irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
 ```
 
-It puts two files in `%LOCALAPPDATA%\Programs\Bach` and adds that folder to
+It puts two files in `%LOCALAPPDATA%\Programs\bach-cli` and adds that folder to
 your `PATH`:
 
 - `bach.exe`, the command you run.

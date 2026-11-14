@@ -25,6 +25,7 @@ pub fn run(args: &Args, package: Package) -> i32 {
     let report = |_: f32, label: &str| {
         if *last.borrow() != label {
             eprintln!("{label}");
+            crate::log::line(label);
             *last.borrow_mut() = label.to_string();
         }
     };
@@ -33,6 +34,21 @@ pub fn run(args: &Args, package: Package) -> i32 {
     let result = match launch::mode(args, &package) {
         Mode::Install => {
             let start = start::install(manifest);
+            if let Some(index) = start::missing_requirements(manifest).first() {
+                let requirement = &manifest.requirements[*index];
+                let values = [("requirement", requirement.name.as_str())];
+                eprintln!("{} {}", texts.with(Key::requirement_subtitle, &values), requirement.url);
+                crate::log::line(&format!("Missing requirement: {}", requirement.name));
+                return 1;
+            }
+            if start.downgrade && !args.allow_downgrade {
+                let installed = start.existing.as_ref().map(|installed| installed.version.as_str()).unwrap_or("?");
+                eprintln!(
+                    "{} Add --allow-downgrade to install it anyway.",
+                    texts.with(Key::downgrade_subtitle, &[("old_version", installed)])
+                );
+                return 1;
+            }
             failed = if start.existing.is_some() { Key::update_failed } else { Key::install_failed };
             let mut choices = start.choices;
             for (ids, on) in [(&args.with, true), (&args.without, false)] {
@@ -69,6 +85,7 @@ pub fn run(args: &Args, package: Package) -> i32 {
         Err(message) => {
             let title = texts.get(failed);
             eprintln!("{title}: {message}");
+            crate::log::line(&format!("Failed: {message}"));
             1
         }
     }

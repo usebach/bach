@@ -35,6 +35,21 @@ pub fn main() {
         Ok(None) => Err(None),
         Err(err) => Err(Some(format!("{err:#}"))),
     };
+    if let Ok(package) = &package {
+        if !args.preview {
+            let path = args.log.clone().unwrap_or_else(|| crate::log::default_path(&package.manifest.app.id));
+            let app = &package.manifest.app;
+            let run: Vec<String> = std::env::args().skip(1).collect();
+            crate::log::start(&path, &format!("{} {} setup, Bach {}, run with {run:?}", app.name, app.version, bach_pack::VERSION));
+        }
+    }
+    if (args.update || args.check_update) && !args.preview {
+        let code = match &package {
+            Ok(package) => crate::updater::run(&args, package),
+            Err(_) => 1,
+        };
+        std::process::exit(code);
+    }
     if args.silent && !args.preview {
         let code = match package {
             Ok(package) => crate::silent::run(&args, package),
@@ -61,8 +76,10 @@ pub fn main() {
             let rows = row_count(&package.manifest, removing);
             let tall = package.manifest.locale.license.is_some() && !removing;
             let package = Arc::new(package);
-            open(Assets { logo_svg }, title, theme, accent, (rows, tall), move |_, _| {
-                SetupView::new(package, texts, mode, args.preview)
+            open(Assets { logo_svg }, title, theme, accent, (rows, tall), move |window, cx| {
+                let view = SetupView::new(package, texts, mode, args.preview, cx);
+                window.focus(&view.focus_handle);
+                view
             });
         }
         Err(problem) => {

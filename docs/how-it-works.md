@@ -25,8 +25,10 @@ so a newer setup file still reads the uninstaller an older one installed.
 
 ## Installing
 
-1. Checks before anything changes: no other setup for the same app is
-   running, the app isn't open, and the drive has room for every file.
+1. Checks before anything changes: what the app needs (requirements) is
+   there, no other setup for the same app is running, the app isn't open,
+   the drive has room for every file, and the archive matches the SHA-256
+   recorded when it was built.
 2. Every chosen file is unpacked next to its target as `<name>.bach-new`.
    Only when all of them are on disk are they swapped into place, each old
    file stepping aside as `<name>.bach-old` first. If one can't be moved (a
@@ -44,6 +46,19 @@ so a newer setup file still reads the uninstaller an older one installed.
 
 Everything is per user, so nothing asks for administrator rights. The
 window can't be closed while files are moving.
+
+## Updates from the app
+
+With `[updates]`, the installed `uninstall.exe` (the runtime with the
+app's manifest) answers `--check-update` and `--update`. It reads the feed's
+JSON with Windows' own `curl.exe`, https only, downloads the newer setup file,
+checks it against the feed's SHA-256 and that it carries the same app id,
+then runs it. The setup file does the update as usual.
+
+## Logs
+
+Every run writes `%TEMP%\<app id>-setup.log` (or `--log FILE`): the steps
+and, when something fails, why. Logging never holds setup up.
 
 ## Languages
 
