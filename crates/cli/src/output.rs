@@ -43,9 +43,15 @@ pub fn error(err: &anyhow::Error) {
 
 fn sentence(text: &str) -> String {
     let text = text.trim();
+    // A sentence that starts with a file or a setting ("bach.toml isn't
+    // valid", "app.executable is …") keeps it as written: "Bach.toml" names
+    // no file, and "App.executable" no setting.
+    let first_word = text.split_whitespace().next().unwrap_or_default();
+    let literal = first_word.contains(['.', '/', '\\', ':', '_', '[']);
     let mut chars = text.chars();
     let mut out = match chars.next() {
-        Some(first) => first.to_uppercase().chain(chars).collect::<String>(),
+        Some(first) if !literal => first.to_uppercase().chain(chars).collect::<String>(),
+        Some(_) => text.to_string(),
         None => String::new(),
     };
     if !out.ends_with(['.', '!', '?']) {
@@ -104,5 +110,9 @@ mod tests {
     fn errors_read_as_sentences() {
         assert_eq!(sentence("couldn't read x"), "Couldn't read x.");
         assert_eq!(sentence("Done."), "Done.");
+        // Files and settings keep their spelling.
+        assert_eq!(sentence("bach.toml isn't valid"), "bach.toml isn't valid.");
+        assert_eq!(sentence("app.executable is \"x.exe\""), "app.executable is \"x.exe\".");
+        assert_eq!(sentence(r".\bach.toml isn't valid"), r".\bach.toml isn't valid.");
     }
 }

@@ -14,7 +14,7 @@ use bach_pack::manifest::App;
 use windows::core::{BOOL, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{FreeLibrary, HMODULE};
 use windows::Win32::System::LibraryLoader::{
-    BeginUpdateResourceW, EndUpdateResourceW, EnumResourceLanguagesW, LoadLibraryExW, UpdateResourceW,
+    BeginUpdateResourceW, EndUpdateResourceW, EnumResourceLanguagesW, EnumResourceNamesW, LoadLibraryExW, UpdateResourceW,
     LOAD_LIBRARY_AS_DATAFILE,
 };
 use windows::Win32::UI::WindowsAndMessaging::{RT_GROUP_ICON, RT_ICON, RT_VERSION};
@@ -26,12 +26,14 @@ fn int_resource(id: u16) -> PCWSTR {
     PCWSTR(std::ptr::without_provenance(usize::from(id)))
 }
 
-/// Leftover icon images past the new icon's count are removed up to here.
-const MAX_OLD_IMAGES: u16 = 32;
+/// An icon with more images than this is damage, not an icon.
+const MAX_IMAGES: u16 = 32;
 
 pub fn apply(exe: &Path, icon: Option<&[u8]>, app: &App, file_name: &str) -> Result<()> {
     let icon = icon.map(parse_ico).transpose().context("app.icon isn't a usable .ico file")?;
     let icon_language = language_of(exe, RT_GROUP_ICON).unwrap_or(0);
+    // Read before the update starts: the file is opened for writing then.
+    let old_images = icon_ids(exe);
     let version_language = language_of(exe, RT_VERSION).unwrap_or(0);
     let version = version_info(app, file_name);
 
@@ -46,9 +48,11 @@ pub fn apply(exe: &Path, icon: Option<&[u8]>, app: &App, file_name: &str) -> Res
                     let id = int_resource(index as u16 + 1);
                     UpdateResourceW(update, RT_ICON, id, icon_language, Some(image.as_ptr() as *const c_void), image.len() as u32)?;
                 }
-                for stale in (icon.images.len() as u16 + 1)..=MAX_OLD_IMAGES {
-                    // Removing an image that isn't there is fine; ignore it.
-                    let _ = UpdateResourceW(update, RT_ICON, int_resource(stale), icon_language, None, 0);
+                // Only images the runtime really has: "deleting" one that
+                // isn't there makes EndUpdateResource fail with
+                // ERROR_INTERNAL_ERROR (0x8007054F), losing the whole update.
+                for stale in old_images.iter().filter(|id| usize::from(**id) > icon.images.len()) {
+                    UpdateResourceW(update, RT_ICON, int_resource(*stale), icon_language, None, 0)?;
                 }
                 UpdateResourceW(
                     update,
@@ -93,6 +97,31 @@ fn language_of(exe: &Path, kind: PCWSTR) -> Option<u16> {
     found
 }
 
+/// The ids of the icon images (RT_ICON) in an executable.
+fn icon_ids(exe: &Path) -> Vec<u16> {
+    unsafe extern "system" fn collect(_: HMODULE, _: PCWSTR, name: PCWSTR, found: isize) -> BOOL {
+        // Numeric ids arrive as pointers no larger than 0xFFFF (IS_INTRESOURCE).
+        let value = name.0 as usize;
+        if value <= 0xFFFF {
+            // Safety: `found` is the &mut Vec<u16> passed below, alive for the call.
+            unsafe { (*(found as *mut Vec<u16>)).push(value as u16) };
+        }
+        BOOL(1)
+    }
+    let path = HSTRING::from(exe.as_os_str());
+    let mut found: Vec<u16> = Vec::new();
+    // Safety: loaded as data only and freed before returning; the callback
+    // writes into `found`, which outlives the call.
+    unsafe {
+        let Ok(module) = LoadLibraryExW(&path, None, LOAD_LIBRARY_AS_DATAFILE) else {
+            return found;
+        };
+        let _ = EnumResourceNamesW(Some(module), RT_ICON, Some(collect), &mut found as *mut _ as isize);
+        let _ = FreeLibrary(module);
+    }
+    found
+}
+
 /// An `.ico` file split into the resources Windows wants: each image on its
 /// own, and a group directory that points at them by id.
 struct Ico {
@@ -107,8 +136,8 @@ fn parse_ico(bytes: &[u8]) -> Result<Ico> {
         bail!("it doesn't start like an icon file");
     }
     let count = read16(4).unwrap_or(0);
-    if count == 0 || count > MAX_OLD_IMAGES {
-        bail!("it holds {count} images; use 1 to {MAX_OLD_IMAGES}");
+    if count == 0 || count > MAX_IMAGES {
+        bail!("it holds {count} images; use 1 to {MAX_IMAGES}");
     }
     let mut group = Vec::with_capacity(6 + 14 * count as usize);
     group.extend_from_slice(&[0, 0, 1, 0]);
@@ -270,5 +299,57 @@ mod tests {
         assert_eq!(parsed.group.len(), 6 + 14);
         assert_eq!(&parsed.group[18..20], &1u16.to_le_bytes());
         assert!(parse_ico(b"not an icon").is_err());
+    }
+}
+
+#[cfg(test)]
+mod apply_tests {
+    use super::*;
+
+    /// An icon with `count` tiny PNG images.
+    fn ico(count: u16) -> Vec<u8> {
+        let png = b"\x89PNG\r\n\x1a\nfake image".to_vec();
+        let mut out = vec![0, 0, 1, 0];
+        out.extend_from_slice(&count.to_le_bytes());
+        let mut offset = 6 + 16 * usize::from(count);
+        for index in 0..count {
+            out.extend_from_slice(&[16 + index as u8, 16 + index as u8, 0, 0, 1, 0, 32, 0]);
+            out.extend_from_slice(&(png.len() as u32).to_le_bytes());
+            out.extend_from_slice(&(offset as u32).to_le_bytes());
+            offset += png.len();
+        }
+        for _ in 0..count {
+            out.extend_from_slice(&png);
+        }
+        out
+    }
+
+    /// Replaces the runtime's icon with fewer, as many, and more images
+    /// than it has. The runtime is the bach-setup.exe this workspace built.
+    #[test]
+    fn icons_of_any_size_replace_the_runtimes() {
+        let built = std::env::current_exe().unwrap().parent().unwrap().parent().unwrap().join("bach-setup.exe");
+        if !built.is_file() {
+            eprintln!("skipped: build bach-setup first");
+            return;
+        }
+        let app = App {
+            id: "Hello".into(),
+            name: "Hello".into(),
+            version: "1.2.3".into(),
+            publisher: "Example".into(),
+            description: None,
+            website: None,
+            executable: "hello.exe".into(),
+        };
+        let before = icon_ids(&built).len();
+        assert!(before > 0, "the runtime has an icon");
+        for count in [1u16, before as u16, before as u16 + 3] {
+            let copy = std::env::temp_dir().join(format!("bach-icon-{count}-{}.exe", std::process::id()));
+            std::fs::copy(&built, &copy).unwrap();
+            apply(&copy, Some(&ico(count)), &app, "Hello-Setup.exe").unwrap();
+            assert_eq!(icon_ids(&copy).len(), usize::from(count), "{count} images");
+            std::fs::remove_file(copy).unwrap();
+        }
     }
 }
