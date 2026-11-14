@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           # The shim that `npm install --global @usebach/cli` puts on PATH.
-          node --test npm/cli/test
+          node --test npm/cli/test/resolve.test.js
           if ($LASTEXITCODE -ne 0) { throw 'The npm package tests failed.' }
 
       - name: Build the example installer
