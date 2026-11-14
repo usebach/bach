@@ -7,16 +7,21 @@
 //! bach preview           open the installer window without installing anything
 //! bach inspect FILE      show what a setup file installs
 //! bach doctor            check that everything a build needs is in place
+//! bach feed FILE --url   write the update feed for a (signed) setup file
+//! bach winget FILE --url write winget manifests for a setup file
 //! ```
 
 mod builder;
+mod detect;
 mod doctor;
+mod feed;
 mod inspect;
 mod output;
 #[cfg(windows)]
 mod resources;
 mod runtime;
 mod template;
+mod winget;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -82,6 +87,34 @@ enum Command {
         /// A setup file (or an installed uninstall.exe).
         file: PathBuf,
     },
+    /// Write the update feed (latest.json) for a setup file, after signing it.
+    Feed {
+        /// The setup file.
+        file: PathBuf,
+        /// The https link it will be downloaded from.
+        #[arg(long)]
+        url: Option<String>,
+        /// A line about what's new.
+        #[arg(long)]
+        notes: Option<String>,
+        /// Write the feed here instead of latest.json next to the setup file.
+        #[arg(long, short)]
+        out: Option<PathBuf>,
+    },
+    /// Write the manifests that list a setup file in winget.
+    Winget {
+        /// The setup file.
+        file: PathBuf,
+        /// The https link it's downloaded from.
+        #[arg(long)]
+        url: String,
+        /// The app's license, like MIT (default: Proprietary).
+        #[arg(long)]
+        license: Option<String>,
+        /// Write the manifests into this folder.
+        #[arg(long, short)]
+        out: Option<PathBuf>,
+    },
     /// Check that everything a build needs is in place.
     Doctor {
         /// The config file.
@@ -109,6 +142,13 @@ fn main() -> ExitCode {
         ),
         Command::Inspect { file } => inspect::inspect(&file),
         Command::Doctor { config } => doctor::doctor(&config),
+        Command::Winget { file, url, license, out } => winget::command(winget::Options {
+            setup: &file,
+            url: &url,
+            license: license.as_deref(),
+            out: out.as_deref(),
+        }),
+        Command::Feed { file, url, notes, out } => feed::command(&file, url.as_deref(), notes.as_deref(), out.as_deref()),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

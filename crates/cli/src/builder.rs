@@ -9,6 +9,7 @@ use anyhow::{bail, Context, Result};
 use bach_pack::archive::{self, Compression};
 use bach_pack::config::{self, Project};
 use bach_pack::container;
+use sha2::{Digest, Sha256};
 
 use crate::output::{self, field, Progress};
 use crate::runtime;
@@ -48,6 +49,9 @@ pub fn build(config_path: &Path, out: Option<&Path>, runtime: Option<&Path>, fas
     let installed = project.manifest.total_size().max(1);
     println!();
     println!("Wrote {} ({})", output.display(), output::size(size));
+    if project.manifest.updates.is_some() {
+        crate::feed::after_build(&project, &output)?;
+    }
     field(
         "Packed",
         format!(
@@ -179,15 +183,36 @@ fn write_into(project: &Project, runtime: &[u8], path: &Path) -> Result<u64> {
     let archive_offset = file.seek(SeekFrom::End(0))?;
     let total = project.manifest.total_size();
     let mut progress = Progress::new("Packing", total);
-    let writer = archive::write(BufWriter::new(file), &project.sources, project.compression, &mut |done| {
-        progress.update(done)
-    })?;
+    let hashing = Hashing { inner: BufWriter::new(file), hasher: Sha256::new() };
+    let hashing = archive::write(hashing, &project.sources, project.compression, &mut |done| progress.update(done))?;
     progress.finish();
-    let mut file = writer.into_inner().map_err(|err| err.into_error())?;
+    let Hashing { inner, hasher } = hashing;
+    let mut file = inner.into_inner().map_err(|err| err.into_error())?;
     let logo = project.logo.as_deref().unwrap_or_default();
-    let layout = container::finish(&mut file, archive_offset, logo, &project.manifest)?;
+    // The runtime checks this before unpacking anything.
+    let mut manifest = project.manifest.clone();
+    manifest.archive_sha256 = Some(format!("{:x}", hasher.finalize()));
+    let layout = container::finish(&mut file, archive_offset, logo, &manifest)?;
     file.sync_all()?;
     Ok(layout.archive.len)
+}
+
+/// A writer that hashes what passes through it.
+struct Hashing<W> {
+    inner: W,
+    hasher: Sha256,
+}
+
+impl<W: std::io::Write> std::io::Write for Hashing<W> {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        let written = self.inner.write(bytes)?;
+        self.hasher.update(&bytes[..written]);
+        Ok(written)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 /// Gives the setup file the app's icon and version details, so Explorer,
