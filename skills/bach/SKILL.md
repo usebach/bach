@@ -20,7 +20,7 @@ No Rust is needed. Pick the first that applies:
 
 - **Windows (PowerShell):**
   `irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex`
-  installs `bach.exe` and `bach-setup.exe` to `%LOCALAPPDATA%\Programs\Bach`
+  installs `bach.exe` and `bach-setup.exe` to `%LOCALAPPDATA%\Programs\bach-cli`
   and puts it on `PATH`. In the same terminal, call it by full path or open a
   new terminal.
 - **macOS or Linux (CI too):**
@@ -55,7 +55,10 @@ next to it (DLLs, resources). Find or produce that folder first, for example:
 
 ## 3. Write bach.toml
 
-Run `bach init` (it won't overwrite an existing file), then edit it. Minimal:
+Run `bach init` (it won't overwrite an existing file). In a Rust, Tauri,
+Electron or .NET project it fills in name, version, publisher, the program,
+the build folder, leftovers to exclude and needed runtimes (WebView2, .NET)
+from the project's own files; check them, then edit. Minimal by hand:
 
 ```toml
 [app]
@@ -113,10 +116,25 @@ description = "My App document"
 install_subtitle = { en = "Fast and private.", de = "Schnell und privat." }
 footer = "Made by {publisher}"
 
+[[requirements]]                          # checked before installing
+kind = "webview2"                         # also "dotnet" (version, desktop), "vcredist", "file", "registry"
+
+[[shortcuts]]                             # more Start menu shortcuts
+name = "My App Docs"
+target = "docs.exe"
+
+[updates]                                 # the installed app can update itself
+feed = "https://example.com/myapp/latest.json"
+download_url = "https://example.com/myapp/{file}"
+
 [uninstall]
 data = ['%APPDATA%\My App']               # single quotes keep backslashes
 data_description = "Your settings."
+feedback_url = "https://example.com/why"  # "Tell us why" after removing
 ```
+
+The file starts with `#:schema https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json`,
+so editors (and you) can check every key against the schema.
 
 Rules the checker enforces (fix the setting it names, don't work around it):
 data folders must start with `%APPDATA%`, `%LOCALAPPDATA%` or `%USERPROFILE%`
@@ -150,7 +168,13 @@ window speaks several).
   Exit code 0 means done; 1 failed (reason printed); 2 a flag mistake.
 - Silent flags: `--dir PATH`, `--with a,b`, `--without a,b` (ids:
   `desktop-shortcut`, `start-menu`, `autostart`, `path`, component ids),
-  `--lang de`, and `--delete-data` for the uninstaller.
+  `--lang de`, `--allow-downgrade`, `--log FILE`, and `--delete-data` for the
+  uninstaller.
+- Every run logs to `%TEMP%\<app id>-setup.log`; read it when something
+  fails instead of guessing.
+- In the Bach repository itself, `scripts\e2e.ps1` installs, updates and
+  removes a throwaway app for real; it's the safe way to test changes to
+  setup.
 
 ## 6. Ship
 
@@ -161,7 +185,15 @@ window speaks several).
   removes files the new version no longer has.
 - In CI, `bach build` exits non-zero with a one-sentence reason on any
   problem. On Linux/macOS runners it works too (the setup file keeps Bach's
-  icon there; build on Windows to apply `app.icon`).
+  icon there; build on Windows to apply `app.icon`). The GitHub Action does
+  both steps: `uses: usebach/bach@main` with `config: bach.toml`, output
+  `setup`.
+- With `[updates]`, upload the setup file and the `latest.json` written next
+  to it. After signing, rewrite the feed: `bach feed SETUP.exe --url URL`.
+  The app checks with `uninstall.exe --check-update` (exit 10 = newer
+  version) and updates with `uninstall.exe --update`.
+- To list the app in winget: `bach winget SETUP.exe --url URL --license MIT`,
+  then `winget validate` and a pull request to microsoft/winget-pkgs.
 
 ## Troubleshooting
 
@@ -172,3 +204,6 @@ window speaks several).
 | `… is a symbolic link` | Copy real files into the source folder. |
 | `couldn't replace … (is it open?)` | Close the old setup file or the running app, then build again. |
 | `bach preview … needs Windows` | Use `bach check` on macOS/Linux. |
+| `requirements[0].…` | Give `kind` one of the listed kinds; `file` and `registry` need `name` and an https `url`. |
+| The installer says a newer version is installed | Raise `version` above the installed one, or pass `--allow-downgrade` on a silent run. |
+| `install.ps1` refuses a folder | It never writes into a folder it didn't make; set `BACH_INSTALL_DIR` to an empty one. |
