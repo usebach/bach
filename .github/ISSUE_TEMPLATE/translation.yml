@@ -1,0 +1,27 @@
+name: Translation fix
+description: A text in the installer window is wrong, unnatural or missing in a language.
+labels: [translation]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every text in the window exists in 13 languages in `crates/pack/src/i18n`.
+        A fix from a native speaker is very welcome, as an issue or a pull request.
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      placeholder: German (de)
+    validations:
+      required: true
+  - type: textarea
+    id: text
+    attributes:
+      label: Which text, and what is wrong with it?
+      description: Quote the text as shown, and say where it appears (page and button).
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested text

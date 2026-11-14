@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest a setting, command or improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bach covers the common case, an app that installs for one user, with
+        settings instead of code. Requests that fit that are easiest to take
+        on. Machine-wide installs, services, drivers and install-time
+        scripts are out of scope.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: Start from the problem, not from the setting you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What happens today?
+      description: What you do now, and why it isn't enough.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like instead?
+      description: A sketch of the `bach.toml` or the window is welcome.
+      render: toml
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Would you like to work on it?
+      options:
+        - label: I could send a pull request for this.
