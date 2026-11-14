@@ -96,7 +96,7 @@ const UPDATES_OPTIONS_OFF: &str = "# or with a feed of your own:
 # auto = true        # offer \"Automatic updates\" (false: unticked, \"always\", \"never\")
 ";
 
-pub fn init(dir: &Path) -> Result<()> {
+pub fn init(dir: &Path, with_workflow: bool) -> Result<()> {
     let path = dir.join("bach.toml");
     if path.exists() {
         bail!("{} already exists; Bach won't overwrite it", path.display());
@@ -113,7 +113,27 @@ pub fn init(dir: &Path) -> Result<()> {
         ),
         None => println!("Wrote {}. Fill in [app] and [files], then run `bach check`.", path.display()),
     }
+    if with_workflow {
+        add_workflow(dir);
+    }
     Ok(())
+}
+
+/// In a GitHub checkout the release workflow comes with the config, so the
+/// first release needs no setup. Never an error: the config is already
+/// written, and `bach workflow` can be run on its own.
+fn add_workflow(dir: &Path) {
+    if crate::github::repository(dir).is_none() {
+        println!("Once this is a GitHub repository, run `bach workflow` to add a one-click release.");
+        return;
+    }
+    match crate::workflow::write(&crate::workflow::Options { dir, force: false }) {
+        Ok(done) => println!(
+            "Also wrote {}: after you commit and push it, release from GitHub under Actions > Release > Run workflow.",
+            done.path.display()
+        ),
+        Err(err) => println!("Didn't add the release workflow: {err:#}. `bach workflow` tries again."),
+    }
 }
 
 /// The template with what the project says about itself, or placeholders
@@ -190,7 +210,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("bach-init-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("build")).unwrap();
-        init(&dir).unwrap();
+        init(&dir, true).unwrap();
         let name = guess_name(&dir);
         let exe = executable_name(&name);
         std::fs::write(dir.join("build").join(format!("{exe}.exe")), b"MZ").unwrap();
@@ -198,7 +218,7 @@ mod tests {
         assert!(text.starts_with("#:schema "), "editors find the schema");
         let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();
         assert_eq!(project.manifest.app.name, name);
-        assert!(init(&dir).is_err(), "init must not overwrite");
+        assert!(init(&dir, true).is_err(), "init must not overwrite");
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -212,7 +232,7 @@ mod tests {
         std::fs::write(dir.join("Cargo.toml"), "[package]\nname = \"clip-board\"\nversion = \"0.4.0\"\n").unwrap();
         std::fs::write(dir.join("target/release/clip-board.exe"), b"MZ").unwrap();
         std::fs::write(dir.join("target/release/deps/junk.rlib"), b"x").unwrap();
-        init(&dir).unwrap();
+        init(&dir, true).unwrap();
         let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();
         assert_eq!(project.manifest.app.name, "Clip Board");
         assert_eq!(project.manifest.app.version, "0.4.0");
@@ -228,7 +248,7 @@ mod tests {
         std::fs::create_dir_all(dir.join("build")).unwrap();
         std::fs::create_dir_all(dir.join(".git")).unwrap();
         std::fs::write(dir.join(".git/config"), "[remote \"origin\"]\n\turl = git@github.com:me/clip.git\n").unwrap();
-        init(&dir).unwrap();
+        init(&dir, true).unwrap();
         let exe = executable_name(&guess_name(&dir));
         std::fs::write(dir.join("build").join(format!("{exe}.exe")), b"MZ").unwrap();
         let project = bach_pack::config::load(&dir.join("bach.toml")).unwrap();

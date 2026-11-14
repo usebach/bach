@@ -56,7 +56,13 @@ crates/pack     bach-pack: bach.toml (config/), manifest (manifest.rs and
                 payload on the exe), paths.rs (safety rules)
 crates/cli      bach-cli, binary `bach`: commands, runtime lookup and
                 download, doctor, init's stack detection (detect.rs), the
-                update feed (feed.rs), winget manifests, Windows resources
+                update feed (feed.rs), winget manifests, Windows resources,
+                `bach version` (version.rs, version_files.rs: one version in
+                every file) and `bach workflow` (workflow.rs and
+                workflow/release.yml: the one-click GitHub release)
+npm/cli         @usebach/cli, the npm package: a shim that starts the native
+                program from @usebach/cli-<platform> (built by
+                scripts/build-npm.mjs, published by the release workflow)
 crates/setup    bach-setup: the installer window
   src/launch.rs   what this run is (install, remove, preview, silent)
   src/silent.rs   --silent: the same jobs without a window

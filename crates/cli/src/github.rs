@@ -13,6 +13,13 @@ pub fn repository(dir: &Path) -> Option<String> {
     })
 }
 
+/// The folder that holds the repository (`.git`) the project lives in.
+/// A `.git` file counts too: that is what worktrees and submodules have.
+pub fn checkout_root(dir: &Path) -> Option<std::path::PathBuf> {
+    let start = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+    start.ancestors().take(6).find(|folder| folder.join(".git").exists()).map(Path::to_path_buf)
+}
+
 /// The `url` of `[remote "origin"]` in a git config.
 fn origin_url(config: &str) -> Option<String> {
     let mut in_origin = false;

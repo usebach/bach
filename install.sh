@@ -8,10 +8,32 @@
 # for the newest), checks its SHA-256 and puts `bach` in ~/.local/bin (or
 # $BACH_INSTALL_DIR). `bach build` fetches the Windows setup runtime it
 # builds on by itself, the first time it needs it.
+#
+# It never needs administrator rights, and never asks for them, unless you
+# ask for a system-wide install: BACH_SCOPE=system (or --system) puts bach in
+# /usr/local/bin for every user, using sudo only for that one copy, and only
+# if that folder isn't yours to write to. If sudo isn't there or is refused,
+# bach is installed for you alone instead.
+#
+#   curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh -s -- --system
 set -eu
 
 repo="usebach/bach"
-dir="${BACH_INSTALL_DIR:-$HOME/.local/bin}"
+scope="${BACH_SCOPE:-user}"
+for arg in "$@"; do
+  case "$arg" in
+    --system) scope=system ;;
+    --user) scope=user ;;
+    *) echo "Unknown option $arg. Use --system or --user." >&2; exit 1 ;;
+  esac
+done
+case "$scope" in
+  user | system) ;;
+  *) echo "BACH_SCOPE must be user or system, not $scope." >&2; exit 1 ;;
+esac
+user_dir="$HOME/.local/bin"
+if [ "$scope" = system ]; then default_dir="/usr/local/bin"; else default_dir="$user_dir"; fi
+dir="${BACH_INSTALL_DIR:-$default_dir}"
 
 case "$(uname -s)" in
   Linux) os=linux ;;
@@ -90,15 +112,45 @@ fi
 [ "$expected" = "$actual" ] || { echo "The download doesn't match its published SHA-256; nothing was installed." >&2; exit 1; }
 
 tar -xzf "$work/$name.tar.gz" -C "$work"
-mkdir -p "$dir"
+
+# Administrator rights are asked for only when a system-wide install was
+# requested and the folder isn't writable by this user; the one copy is all
+# that runs with them.
+sudo=""
+can_write() {
+  # Walk up to the first folder that exists: mkdir -p would create below it.
+  probe="$1"
+  while [ ! -d "$probe" ]; do probe=$(dirname "$probe"); done
+  [ -w "$probe" ]
+}
+if ! can_write "$dir"; then
+  if [ "$scope" = system ] && command -v sudo >/dev/null 2>&1; then
+    echo "Installing for every user needs administrator rights to write to $dir; sudo may ask for your password."
+    if sudo -v; then
+      sudo="sudo"
+    fi
+  fi
+  if [ -z "$sudo" ]; then
+    if [ "$scope" = system ] && [ -z "${BACH_INSTALL_DIR:-}" ]; then
+      echo "No administrator rights, so bach is installed for you alone in $user_dir instead." >&2
+      scope=user
+      dir="$user_dir"
+    else
+      echo "$dir isn't writable by you. Set BACH_INSTALL_DIR to a folder of your own, or use BACH_SCOPE=system to install for every user." >&2
+      exit 1
+    fi
+  fi
+fi
+$sudo mkdir -p "$dir"
 # A `bach` this script didn't put there belongs to something else: keep it.
 mark="$dir/.bach-cli"
 if [ -e "$dir/bach" ] && [ ! -e "$mark" ]; then
   echo "$dir/bach already exists and isn't from this script, so nothing was installed. Set BACH_INSTALL_DIR to another folder." >&2
   exit 1
 fi
-install -m 755 "$work/$name/bach" "$dir/bach"
-echo "Installed by https://github.com/usebach/bach/blob/main/install.sh" > "$mark"
+$sudo install -m 755 "$work/$name/bach" "$dir/bach"
+echo "Installed by https://github.com/usebach/bach/blob/main/install.sh" > "$work/mark"
+$sudo install -m 644 "$work/mark" "$mark"
 echo "Installed $("$dir/bach" --version) to $dir/bach"
 case ":$PATH:" in
   *":$dir:"*) ;;

@@ -9,6 +9,8 @@
 //! bach doctor            check that everything a build needs is in place
 //! bach feed FILE         write the update feed for a (signed) setup file
 //! bach winget FILE --url write winget manifests for a setup file
+//! bach version [TARGET]  show or raise the version in every file that has one
+//! bach workflow          add the one-click release workflow to a GitHub repository
 //! ```
 
 mod builder;
@@ -22,7 +24,10 @@ mod output;
 mod resources;
 mod runtime;
 mod template;
+mod version;
+mod version_files;
 mod winget;
+mod workflow;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -43,6 +48,9 @@ enum Command {
         /// Where to write it.
         #[arg(default_value = ".")]
         dir: PathBuf,
+        /// Don't add the GitHub release workflow, even in a GitHub checkout.
+        #[arg(long)]
+        no_workflow: bool,
     },
     /// Read a bach.toml and list what the installer would install.
     Check {
@@ -130,6 +138,27 @@ enum Command {
         #[arg(long, short)]
         out: Option<PathBuf>,
     },
+    /// Show the version a project carries, or raise it in every file at once.
+    Version {
+        /// patch, minor, major, current (keep it), or an exact version like
+        /// 2.0.0. Leave it out to list the versions instead.
+        target: Option<String>,
+        /// The config file; the version files are the ones next to it.
+        #[arg(long, default_value = "bach.toml")]
+        config: PathBuf,
+        /// Say what would change, and write nothing.
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Add the one-click release workflow to this GitHub repository.
+    Workflow {
+        /// The folder with the bach.toml.
+        #[arg(default_value = ".")]
+        dir: PathBuf,
+        /// Replace .github/workflows/bach-release.yml even if Bach didn't write it.
+        #[arg(long)]
+        force: bool,
+    },
     /// Check that everything a build needs is in place.
     Doctor {
         /// The config file.
@@ -141,7 +170,7 @@ enum Command {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match cli.command {
-        Command::Init { dir } => template::init(&dir),
+        Command::Init { dir, no_workflow } => template::init(&dir, !no_workflow),
         Command::Check { config, app_version } => builder::check(&config, app_version.as_deref()),
         Command::Build { config, out, runtime, fast, app_version } => {
             builder::build(&config, out.as_deref(), runtime.as_deref(), fast, app_version.as_deref()).map(|_| ())
@@ -157,6 +186,10 @@ fn main() -> ExitCode {
         ),
         Command::Inspect { file } => inspect::inspect(&file),
         Command::Doctor { config } => doctor::doctor(&config),
+        Command::Version { target, config, dry_run } => {
+            version::command(version::Options { config: &config, target: target.as_deref(), dry_run })
+        }
+        Command::Workflow { dir, force } => workflow::command(workflow::Options { dir: &dir, force }),
         Command::Winget { file, url, license, out } => winget::command(winget::Options {
             setup: &file,
             url: &url,

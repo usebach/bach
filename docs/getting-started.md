@@ -5,7 +5,19 @@ share. It takes about five minutes.
 
 ## 1. Get Bach
 
-You don't need Rust. In PowerShell:
+You don't need Rust, and no step asks for administrator rights. With
+Node.js 18 or newer, on Windows, macOS or Linux:
+
+```bash
+npm install --global @usebach/cli
+```
+
+Update it with `npm update --global @usebach/cli` and remove it with
+`npm uninstall --global @usebach/cli`. (If npm's global folder isn't yours,
+give npm one that is with `npm config set prefix ~/.npm-global` rather than
+using `sudo`.)
+
+Without Node.js, in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
@@ -16,6 +28,14 @@ your `PATH`:
 
 - `bach.exe`, the command you run.
 - `bach-setup.exe`, the installer window every setup file is built from.
+
+To make `bach` available to every user of the PC instead, set
+`$env:BACH_SCOPE = 'system'` before that line. It installs to
+`%ProgramFiles%\bach-cli`, and Windows asks for permission once, for that
+copy only. If you decline, Bach is installed for you alone. On macOS and
+Linux, `--system` does the same into `/usr/local/bin`, using `sudo` only if
+that folder isn't writable by you:
+`curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh -s -- --system`.
 
 Prefer doing it by hand? Download `bach-<version>-windows-x64.zip` from the
 [releases page](https://github.com/usebach/bach/releases), unzip it
@@ -134,11 +154,14 @@ this to `bach.toml`:
 github = "owner/repo"
 ```
 
-Then publish with the Bach action: push a tag like `v1.1.0` and it builds
-the setup file with that version and publishes it as a release. Installed
-apps find it, download it in the background and install it when the app
-is closed. See [updates](updates.md) for the workflow, and for what your app
-can do to update on quit.
+Then release from GitHub. In a GitHub checkout `bach init` already wrote
+`.github/workflows/bach-release.yml` (`bach workflow` adds it to an existing
+project): commit and push it, then press **Actions › Release › Run workflow**.
+It raises the version in every file that has one, builds your app and the
+setup file, tags the release and publishes it. Installed apps find it,
+download it in the background and install it when the app is closed. See
+[releasing](releasing.md) for the options, and [updates](updates.md) for what
+your app can do to update on quit and for a workflow of your own.
 
 ## Tips
 

@@ -16,8 +16,15 @@ administrator prompt. There is no script language: everything is declared in
 
 Check first: `bach --version`. If that works, skip to step 2.
 
-No Rust is needed. Pick the first that applies:
+No Rust is needed, and none of these needs administrator rights (do not use
+`sudo` or an elevated shell). Pick the first that applies:
 
+- **Node.js 18+ is installed (any OS):** `npm install --global @usebach/cli`
+  (or `npm install --save-dev @usebach/cli` and `npx bach` for one project).
+  If npm's global folder isn't writable, run
+  `npm config set prefix ~/.npm-global` and add its `bin` to `PATH`; don't
+  use `sudo`. Update: `npm update --global @usebach/cli`; remove:
+  `npm uninstall --global @usebach/cli`.
 - **Windows (PowerShell):**
   `irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex`
   installs `bach.exe` and `bach-setup.exe` to `%LOCALAPPDATA%\Programs\bach-cli`
@@ -27,6 +34,11 @@ No Rust is needed. Pick the first that applies:
   `curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh`
   installs `bach` to `~/.local/bin`. It downloads the Windows runtime it
   builds on (`bach-setup.exe`, SHA-256 checked) on the first `bach build`.
+- **For every user of the machine:** only if the user asks for it. Set
+  `BACH_SCOPE=system` (PowerShell: `$env:BACH_SCOPE = 'system'` before the
+  line; shell: `sh -s -- --system`). Windows or `sudo` then asks the user
+  once; if they decline, it falls back to a per-user install. Never run the
+  user-level install elevated.
 - **No network to GitHub's raw files:** download
   `bach-<version>-windows-x64.zip` from https://github.com/usebach/bach/releases,
   unzip, and keep `bach.exe` and `bach-setup.exe` in the same folder.
@@ -72,10 +84,22 @@ source = "build"                 # relative to bach.toml
 exclude = ["*.pdb"]
 ```
 
+In a git checkout whose `origin` is on GitHub, `bach init` also wrote
+`.github/workflows/bach-release.yml`: a one-click release (Actions › Release ›
+Run workflow). In a project that already has a `bach.toml`, run
+`bach workflow` to add it (never hand-write a release workflow instead). Tell
+the user to commit and push it, and look at its **Build your app** step: it is
+filled in for Rust, Tauri, Electron and .NET and holds a `TODO` for anything
+else. See "Ship" below.
+
 Take name, version and publisher from the project's own metadata
-(`Cargo.toml`, `package.json`, `.csproj`) instead of inventing them, and keep
-`version` in sync with it. Never change `[app] id` (defaults to `name`) after
-a release: it is how updates recognise the install.
+(`Cargo.toml`, `package.json`, `.csproj`) instead of inventing them. Never
+edit the version in several files by hand: `bach version` shows every file's
+version and `bach version patch|minor|major|X.Y.Z` raises it in all of them
+(`bach.toml`, `package.json`, `package-lock.json`, `Cargo.toml`,
+`Cargo.lock`, `tauri.conf.json`, `.csproj`) without reformatting them, so the
+lock files stay in step with the manifests. Never change `[app] id` (defaults to
+`name`) after a release: it is how updates recognise the install.
 
 Common additions (all optional; full reference in `docs/config.md` of the
 repository, https://github.com/usebach/bach/blob/main/docs/config.md):
@@ -182,7 +206,15 @@ window speaks several).
 
 - Sign the setup file with `signtool` like any program (the payload is
   covered by the signature); unsigned downloads get SmartScreen warnings.
-- For an update: raise `version`, `bach build`, ship the new file. Running it
+- To release from GitHub with no setup: `bach workflow`, commit, push, then
+  Actions › Release › Run workflow (inputs: `bump`, `version`, `notes`,
+  `prerelease`, `draft`, `latest`, `dry_run`; or
+  `gh workflow run bach-release.yml -f bump=minor`). It raises the version
+  everywhere, installs dependencies (a drifted `package-lock.json` is brought
+  up to date from `package.json` and committed, any other install failure
+  stops it), builds, tags and publishes. Run it with `dry_run=true` first to
+  see it build without publishing. Docs: docs/releasing.md.
+- For an update by hand: raise `version`, `bach build`, ship the new file. Running it
   over an install updates in place, keeps the user's choices and data, and
   removes files the new version no longer has.
 - In CI, `bach build` exits non-zero with a one-sentence reason on any
@@ -221,4 +253,7 @@ window speaks several).
 | `bach preview … needs Windows` | Use `bach check` on macOS/Linux. |
 | `requirements[0].…` | Give `kind` one of the listed kinds; `file` and `registry` need `name` and an https `url`. |
 | The installer says a newer version is installed | Raise `version` above the installed one, or pass `--allow-downgrade` on a silent run. |
+| `The bach program for … isn't installed` (npm) | npm skipped the optional platform package (`--omit=optional`). Install again without that flag. |
+| `bach workflow` says the file wasn't written by Bach | A different `.github/workflows/bach-release.yml` exists; keep it, or pass `--force` to replace it. |
+| The release workflow can't push | The branch is protected: let `github-actions[bot]` push to it, or run the workflow from another branch. |
 | `install.ps1` refuses a folder | It never writes into a folder it didn't make; set `BACH_INSTALL_DIR` to an empty one. |
