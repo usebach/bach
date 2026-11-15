@@ -141,7 +141,7 @@ fn write(setup: &Path, url: &str, notes: Option<&str>, rollout: Option<u8>, out:
     let entry = FeedEntry {
         version: manifest.app.version.clone(),
         url: url.to_string(),
-        sha256: format!("{:x}", Sha256::digest(&bytes)),
+        sha256: bach_pack::protect::hex(&Sha256::digest(&bytes)),
         notes,
         size: Some(bytes.len() as u64),
         rollout,

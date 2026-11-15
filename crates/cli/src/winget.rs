@@ -35,7 +35,7 @@ pub fn command(options: Options) -> Result<()> {
         bail!("{} is {what}; point bach winget at the full setup file", options.setup.display());
     }
     let bytes = std::fs::read(options.setup)?;
-    let sha256 = format!("{:X}", Sha256::digest(&bytes));
+    let sha256 = bach_pack::protect::hex(&Sha256::digest(&bytes)).to_ascii_uppercase();
     let id = package_id(&manifest);
     let version = &manifest.app.version;
     let dir = match options.out {

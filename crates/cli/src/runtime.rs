@@ -103,7 +103,7 @@ fn download(url: &str) -> Result<PathBuf> {
         let expected = std::fs::read_to_string(&checksum)?;
         let expected = expected.split_whitespace().next().unwrap_or_default().to_ascii_lowercase();
         let bytes = std::fs::read(&partial)?;
-        let actual = format!("{:x}", Sha256::digest(&bytes));
+        let actual = bach_pack::protect::hex(&Sha256::digest(&bytes));
         if expected.len() != 64 || expected != actual {
             bail!("the downloaded runtime doesn't match its published SHA-256, so it wasn't used");
         }

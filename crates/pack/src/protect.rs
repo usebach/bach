@@ -121,7 +121,7 @@ pub fn generate_key() -> Result<String> {
 }
 
 fn fill_random(bytes: &mut [u8]) -> Result<()> {
-    getrandom::getrandom(bytes).map_err(|err| anyhow::anyhow!("couldn't get random bytes from the system: {err}"))
+    getrandom::fill(bytes).map_err(|err| anyhow::anyhow!("couldn't get random bytes from the system: {err}"))
 }
 
 impl Encryption {
@@ -221,7 +221,25 @@ fn same(a: &[u8], b: &[u8]) -> bool {
     a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// SHA-256 of everything `reader` yields, as lowercase hex. sha2 0.11
+/// dropped its `io::Write` impl, so `io::copy` into a hasher no longer works.
+pub fn sha256_hex(mut reader: impl Read) -> std::io::Result<String> {
+    let mut hasher = Sha256::new();
+    let mut buffer = vec![0u8; 64 * 1024];
+    loop {
+        match reader.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => hasher.update(&buffer[..n]),
+            Err(err) if err.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(err) => return Err(err),
+        }
+    }
+    Ok(hex(&hasher.finalize()))
+}
+
+/// Lowercase hex text for `bytes` (what a SHA-256 digest is shown as; the
+/// digest type itself no longer formats as hex since sha2 0.11).
+pub fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
@@ -557,5 +575,13 @@ mod tests {
     fn unlocked_keys_are_never_printed() {
         let (_, unlocked) = protection();
         assert_eq!(format!("{unlocked:?}"), "Unlocked(..)");
+    }
+
+    /// Setup files already in the wild were locked with an older Argon2
+    /// build; this value was computed with argon2 0.5 and must never change.
+    #[test]
+    fn key_derivation_matches_setups_already_released() {
+        let unlocked = derive("correct horse", b"0123456789abcdef", 64, 2).unwrap();
+        assert_eq!(check_value(&unlocked), "8cf3737dbfe980985526c929c7c8298f3e4ab2e08b4df5d926923a71e54db2dc");
     }
 }

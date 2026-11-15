@@ -17,7 +17,6 @@ use std::path::{Path, PathBuf};
 use bach_pack::container;
 use bach_pack::manifest::FeedEntry;
 use serde_json::json;
-use sha2::{Digest, Sha256};
 
 use super::curl::{self, Bearer, Fetch};
 use crate::system::host;
@@ -90,9 +89,7 @@ fn inspect(path: &Path, app_id: &str, version: &str) -> Result<(), String> {
 }
 
 fn hash_file(path: &Path) -> io::Result<String> {
-    let mut hasher = Sha256::new();
-    io::copy(&mut File::open(path)?, &mut hasher)?;
-    Ok(format!("{:x}", hasher.finalize()))
+    bach_pack::protect::sha256_hex(File::open(path)?)
 }
 
 /// [`ensure_with`] for every entry that offers the version, in turn (the

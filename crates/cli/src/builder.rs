@@ -297,7 +297,7 @@ fn write_into(project: &Project, runtime: &[u8], path: &Path, sealing: Option<&S
     let logo = project.logo.as_deref().unwrap_or_default();
     // The runtime checks this before unpacking anything.
     let mut manifest = project.manifest.clone();
-    manifest.archive_sha256 = Some(format!("{:x}", hasher.finalize()));
+    manifest.archive_sha256 = Some(bach_pack::protect::hex(&hasher.finalize()));
     let layout = container::finish(&mut file, archive_offset, logo, &manifest)?;
     file.sync_all()?;
     Ok(layout.archive.len)

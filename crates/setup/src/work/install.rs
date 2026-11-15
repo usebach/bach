@@ -388,17 +388,15 @@ fn shortcuts(
 /// Checks the archive against the SHA-256 the builder recorded, before a
 /// single file is unpacked, so a damaged download fails right away.
 fn verify_archive(package: &Package, section: container::Section, texts: &Texts) -> Result<(), String> {
-    use sha2::{Digest, Sha256};
     let Some(expected) = &package.manifest.archive_sha256 else {
         return Ok(());
     };
     let damaged = || texts.get(Key::error_damaged);
     let mut file = File::open(&package.exe).map_err(|_| texts.get(Key::error_read_setup))?;
     file.seek(SeekFrom::Start(section.offset)).map_err(|_| texts.get(Key::error_read_setup))?;
-    let mut hasher = Sha256::new();
     let mut reader = file.take(section.len);
-    std::io::copy(&mut reader, &mut hasher).map_err(|_| texts.get(Key::error_read_setup))?;
-    if reader.limit() != 0 || format!("{:x}", hasher.finalize()) != expected.to_ascii_lowercase() {
+    let actual = bach_pack::protect::sha256_hex(&mut reader).map_err(|_| texts.get(Key::error_read_setup))?;
+    if reader.limit() != 0 || actual != expected.to_ascii_lowercase() {
         return Err(damaged());
     }
     Ok(())
