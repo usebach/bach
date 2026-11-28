@@ -2,6 +2,15 @@
 
 What changed in each release of Bach, newest first. The release workflow writes this from the commit history.
 
+## 0.11.5 (2026-11-28)
+
+### Improvements
+
+- Update: Bump the cargo group with 5 updates ([72952ac](https://github.com/usebach/bach/commit/72952ac86683f1707998215854869de7dace0dff))
+- Update: Bump EmbarkStudios/cargo-deny-action ([2de66ed](https://github.com/usebach/bach/commit/2de66edb63536d018ea34879ba8901cf37f07956))
+
+All changes: [v0.11...v0.11.5](https://github.com/usebach/bach/compare/v0.11...v0.11.5)
+
 ## 0.11.4 (2026-11-27)
 
 ### Fixes
