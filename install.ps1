@@ -1,6 +1,6 @@
 # Installs Bach for the current user, no Rust or admin rights needed:
 #
-#   irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/usebach/bach-installer/main/install.ps1 | iex
 #
 # Downloads the latest release (or $env:BACH_VERSION: "0.2.0" for exactly
 # that one, "0.2" or "0" for the newest of that line, "latest" for the
@@ -25,7 +25,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$repo = 'usebach/bach'
+$repo = 'usebach/bach-installer'
 $scope = "$($env:BACH_SCOPE)".Trim().ToLower()
 if (-not $scope) { $scope = 'user' }
 if ($scope -ne 'user' -and $scope -ne 'system') { throw "BACH_SCOPE must be user or system, not $scope." }
@@ -197,7 +197,7 @@ try {
         throw "The download isn't a readable archive; nothing was installed."
     }
     New-Item -ItemType Directory -Force -Path $target | Out-Null
-    Set-Content -Path (Join-Path $target $mark) -Value 'Installed by https://github.com/usebach/bach/blob/main/install.ps1'
+    Set-Content -Path (Join-Path $target $mark) -Value 'Installed by https://github.com/usebach/bach-installer/blob/main/install.ps1'
     foreach ($file in $ours) {
         $from = Get-ChildItem -Path $unpacked -Recurse -Filter $file | Select-Object -First 1
         if (-not $from) { throw "The download has no $file." }

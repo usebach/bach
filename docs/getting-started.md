@@ -1,11 +1,11 @@
-# Getting started with Bach
+# Getting started with Bach Installer
 
 This guide takes you from a built app to a `Setup.exe` you can give to other
 people. You don't need Rust or an installer script. The same walkthrough, with
 more detail and a sample app, is in the
 [quickstart](https://usebach.app/docs/quickstart).
 
-## 1. Install Bach
+## 1. Install Bach Installer
 
 With Node.js 18 or newer, on Windows, macOS or Linux:
 
@@ -16,7 +16,7 @@ npm install --global @usebach/cli
 Without Node.js, in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/usebach/bach-installer/main/install.ps1 | iex
 ```
 
 The script puts `bach.exe` (the command you run) and `bach-setup.exe` (the
@@ -36,7 +36,7 @@ bach --version
 
 ## 2. Build your app into a folder
 
-Bach packages an app that is already built. It installs everything in one
+Bach Installer packages an app that is already built. It installs everything in one
 folder, so that folder needs your program and every file it uses:
 
 ```text
@@ -46,12 +46,12 @@ my-app/
     resources/
 ```
 
-Use the folder your build tool writes to. Don't point Bach at your project
+Use the folder your build tool writes to. Don't point Bach Installer at your project
 folder, or you'd ship source code and caches.
 
 ## 3. Write bach.toml
 
-`bach.toml` is the one file that tells Bach what to package. In your project
+`bach.toml` is the one file that tells Bach Installer what to package. In your project
 folder, run:
 
 ```bash
@@ -146,7 +146,7 @@ the app in place: it keeps the folder and the user's choices, and removes files
 the new version no longer has. If something goes wrong, the old version is put
 back.
 
-Keep `app.name` (or `app.id`, if you set it) the same across versions. Bach
+Keep `app.name` (or `app.id`, if you set it) the same across versions. Bach Installer
 uses it to recognize the installed app.
 
 To have installed apps update themselves from GitHub releases:

@@ -1,6 +1,6 @@
-# Contributing to Bach
+# Contributing to Bach Installer
 
-Thank you for helping. Bach builds modern, clean Windows installers: one
+Thank you for helping. Bach Installer builds modern, clean Windows installers: one
 `bach.toml` in, one `Setup.exe` out. Bug reports, ideas, docs, translations
 and code are all welcome.
 
@@ -11,11 +11,11 @@ For security problems, don't open an issue; follow the
 ## Ways to help
 
 - **Report a bug.** Use the
-  [bug report form](https://github.com/usebach/bach/issues/new?template=bug_report.yml).
+  [bug report form](https://github.com/usebach/bach-installer/issues/new?template=bug_report.yml).
   A small `bach.toml` that shows it, the output of `bach doctor`, and the
   setup log (`%TEMP%\<id>-setup.log`) make it much faster to fix.
 - **Suggest something.** Open a
-  [feature request](https://github.com/usebach/bach/issues/new?template=feature_request.yml)
+  [feature request](https://github.com/usebach/bach-installer/issues/new?template=feature_request.yml)
   that starts from what you're trying to do, not from the setting you'd
   like. For anything big, talk to us before you write code.
 - **Fix a translation.** Every text in the window exists in 19 languages in
@@ -24,7 +24,7 @@ For security problems, don't open an issue; follow the
   confuses others.
 - **Send a pull request.** Small and focused is easiest to review.
 
-## What Bach is about
+## What Bach Installer is about
 
 Keep these in mind when you propose a change; they decide what fits.
 
@@ -46,7 +46,7 @@ You need Rust (stable) and, on Windows, the Visual Studio C++ build tools.
 (`bach-setup`) is Windows only.
 
 ```bash
-git clone https://github.com/usebach/bach.git
+git clone https://github.com/usebach/bach-installer.git
 cd bach
 cargo build --release
 ```
@@ -151,5 +151,5 @@ when CI is green.
 
 ## License
 
-Bach is [MIT licensed](LICENSE). By contributing you agree that your
+Bach Installer is [MIT licensed](LICENSE). By contributing you agree that your
 contribution is released under the same license.

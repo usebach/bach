@@ -1,11 +1,11 @@
 ---
 name: bach
-description: Build a modern Windows installer (Setup.exe) for any desktop app with Bach - one bach.toml, then `bach build`. Use when the user wants to package, ship or distribute a Windows app (Rust, Electron, Tauri, .NET, Go, C++, Python bundles, anything with an .exe), make a setup file or installer, add an uninstaller, auto-updates over an old install, Start menu or desktop shortcuts, PATH, file associations, URL protocols, a license page or a localized install window, or replace an NSIS / Inno Setup / WiX / MSI script.
+description: Build a modern Windows installer (Setup.exe) for any desktop app with Bach Installer - one bach.toml, then `bach build`. Use when the user wants to package, ship or distribute a Windows app (Rust, Electron, Tauri, .NET, Go, C++, Python bundles, anything with an .exe), make a setup file or installer, add an uninstaller, auto-updates over an old install, Start menu or desktop shortcuts, PATH, file associations, URL protocols, a license page or a localized install window, or replace an NSIS / Inno Setup / WiX / MSI script.
 ---
 
-# Bach: Windows installers from one bach.toml
+# Bach Installer: Windows installers from one bach.toml
 
-Bach turns a folder with an app into one `Setup.exe`: a calm, native-looking
+Bach Installer turns a folder with an app into one `Setup.exe`: a calm, native-looking
 install window (light and dark, 19 languages, follows Windows' language), a
 built-in updater (a newer setup over an install updates it in place) and a
 clean uninstaller in Settings › Apps. Installs are per user by default, so
@@ -40,12 +40,12 @@ No Rust is needed, and none of these needs administrator rights (do not use
   use `sudo`. Update: `npm update --global @usebach/cli`; remove:
   `npm uninstall --global @usebach/cli`.
 - **Windows (PowerShell):**
-  `irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex`
+  `irm https://raw.githubusercontent.com/usebach/bach-installer/main/install.ps1 | iex`
   installs `bach.exe` and `bach-setup.exe` to `%LOCALAPPDATA%\Programs\bach-cli`
   and puts it on `PATH`. In the same terminal, call it by full path or open a
   new terminal.
 - **macOS or Linux (CI too):**
-  `curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh`
+  `curl -fsSL https://raw.githubusercontent.com/usebach/bach-installer/main/install.sh | sh`
   installs `bach` to `~/.local/bin`. It downloads the Windows runtime it
   builds on (`bach-setup.exe`, SHA-256 checked) on the first `bach build`.
 - **For every user of the machine:** only if the user asks for it. Set
@@ -54,12 +54,12 @@ No Rust is needed, and none of these needs administrator rights (do not use
   once; if they decline, it falls back to a per-user install. Never run the
   user-level install elevated.
 - **No network to GitHub's raw files:** download
-  `bach-<version>-windows-x64.zip` from https://github.com/usebach/bach/releases,
+  `bach-<version>-windows-x64.zip` from https://github.com/usebach/bach-installer/releases,
   unzip, and keep `bach.exe` and `bach-setup.exe` in the same folder.
 - **Building from source** (only if Rust is already installed, or the user
-  wants it): `cargo install --git https://github.com/usebach/bach bach-cli`,
+  wants it): `cargo install --git https://github.com/usebach/bach-installer bach-cli`,
   then `bach` downloads its runtime when it needs it. In a checkout of the
-  Bach repository, `cargo build --release` gives both binaries in
+  Bach Installer repository, `cargo build --release` gives both binaries in
   `target/release`.
 
 Then run `bach doctor` in the project folder. It says whether the runtime
@@ -67,7 +67,7 @@ and the config are in place and exactly what to fix if not.
 
 ## 2. Build the app into one folder
 
-Bach installs the contents of one folder: the `.exe` plus everything it needs
+Bach Installer installs the contents of one folder: the `.exe` plus everything it needs
 next to it (DLLs, resources). Find or produce that folder first, for example:
 
 | Stack | Typical folder |
@@ -90,7 +90,7 @@ the build folder, leftovers to exclude and needed runtimes (WebView2, Visual C++
 from the project's own files; check them, then edit. For .NET the `dotnet`
 requirement is commented out, because a self-contained publish carries the
 runtime: uncomment it only if you publish with `--self-contained false`. The window always starts
-in Bach's own style (`bach`), whatever the project: set `installer.style` only
+in Bach Installer's own style (`bach`), whatever the project: set `installer.style` only
 when the developer asks for another look. Minimal by hand:
 
 ```toml
@@ -124,7 +124,7 @@ lock files stay in step with the manifests. Never change `[app] id` (defaults to
 `name`) after a release: it is how updates recognise the install.
 
 Common additions (all optional; full reference in `docs/config.md` of the
-repository, https://github.com/usebach/bach/blob/main/docs/config.md):
+repository, https://github.com/usebach/bach-installer/blob/main/docs/config.md):
 
 ```toml
 [app]
@@ -224,7 +224,7 @@ data_description = "Your settings."
 feedback_url = "https://example.com/why"  # "Tell us why" after removing
 ```
 
-The file starts with `#:schema https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json`,
+The file starts with `#:schema https://raw.githubusercontent.com/usebach/bach-installer/main/schema/bach.schema.json`,
 so editors (and you) can check every key against the schema.
 
 Rules the checker enforces (fix the setting it names, don't work around it):
@@ -272,7 +272,7 @@ window speaks several).
   and `--delete-data` for the uninstaller.
 - Every run logs to `%TEMP%\<app id>-setup.log`; read it when something
   fails instead of guessing.
-- In the Bach repository itself, `scripts\e2e.ps1` installs, updates and
+- In the Bach Installer repository itself, `scripts\e2e.ps1` installs, updates and
   removes a throwaway app for real; it's the safe way to test changes to
   setup.
 
@@ -280,7 +280,7 @@ window speaks several).
 
 - Sign the setup file with `signtool` like any program (the payload is
   covered by the signature); unsigned downloads get SmartScreen warnings.
-  `signtool` is part of the Windows SDK and rarely on `PATH` (Bach finds it
+  `signtool` is part of the Windows SDK and rarely on `PATH` (Bach Installer finds it
   when it signs). Signing is optional: `[signing]` (`program`, `arguments`
   that start with `sign` for signtool, with `{file}` and `{env:NAME}`) lets `bach build --sign` (or `BACH_SIGN=1`) sign;
   without `--sign` nothing runs. `bach sign FILE` signs a built file.
@@ -296,16 +296,16 @@ window speaks several).
   over an install updates in place, keeps the user's choices and data, and
   removes files the new version no longer has.
 - In CI, `bach build` exits non-zero with a one-sentence reason on any
-  problem. On Linux/macOS runners it works too (the setup file keeps Bach's
+  problem. On Linux/macOS runners it works too (the setup file keeps Bach Installer's
   icon there; build on Windows to apply `app.icon`). The GitHub Action does
-  both steps: `uses: usebach/bach@v0` with `config: bach.toml`, output
+  both steps: `uses: usebach/bach-installer@v0` with `config: bach.toml`, output
   `setup`.
 - To publish updates from GitHub: set `[updates] github = "owner/repo"`, and
   in a workflow that runs on pushed tags (`v*`, with `contents: write`) use
-  `usebach/bach@v0` with `config: bach.toml` and `release: true`. The tag is
+  `usebach/bach-installer@v0` with `config: bach.toml` and `release: true`. The tag is
   the app's version (`bach build --app-version v1.4.0`), the release holds the
   setup file and `latest.json`. `@v0.2` pins a line, a SHA pins a commit.
-  `sign-command`, `notes` and `version` (which Bach: `0.2`, `latest`) are the
+  `sign-command`, `notes` and `version` (which Bach Installer: `0.2`, `latest`) are the
   other inputs. Docs: docs/updates.md.
 - Without GitHub, upload the setup file and the `latest.json` written next to
   it. After signing, rewrite the feed: `bach feed SETUP.exe` (the link comes
@@ -335,7 +335,7 @@ window speaks several).
   since Chocolatey installs as an administrator).
 - For Group Policy or Configuration Manager: `bach build --msi` also writes a real `.msi` (files, shortcuts,
   registry, optional components, upgrades); it says what it can't carry. 3-number versions only. Opening the `.msi`
-  shows the same Bach window as the setup file (Windows Installer does the work under it); `/qn` stays quiet.
+  shows the same Bach Installer window as the setup file (Windows Installer does the work under it); `/qn` stays quiet.
 - To deploy with Microsoft Intune: `bach intune SETUP.exe` writes the install and
   uninstall commands and the detection rule (`intune.md`) and a detection script
   (`detect.ps1`); use `installer.scope = "machine"` for devices.
@@ -356,14 +356,14 @@ window speaks several).
   to upload; the installer downloads it only when the box is ticked.
 - For two independent choices over the same files (pick vendors, and one "Tools" box for all of them):
   set `installer.shared_files = "all"` and let the `[[components]]` patterns overlap; a file is then
-  installed only when every component matching it is ticked. Needs Bach newer than 0.11.0; no `--msi`.
+  installed only when every component matching it is ticked. Needs Bach Installer newer than 0.11.0; no `--msi`.
 - For a portable ZIP or a company (machine-wide) version of the same app: add `[profiles.NAME]`
   to `bach.toml` (`kind = "zip"`, or settings that differ), then `bach build --profile NAME` or
   `bach build --all-profiles`; `bach profiles` lists them.
 - To start from an existing Inno Setup or NSIS installer: `bach import installer.iss` (or `.nsi`)
   writes a first `bach.toml` next to it and lists what it couldn't convert; `--dry-run` prints it.
   Read it, then `bach check`.
-- In GitHub Actions, `compare: true` on the `usebach/bach` action writes `bach diff` against the
+- In GitHub Actions, `compare: true` on the `usebach/bach-installer` action writes `bach diff` against the
   latest release to the job summary and one pull request comment (needs `pull-requests: write`).
 - To see what changed between two releases: `bach diff OLD.exe NEW.exe` (files added,
   removed and changed, new registry values, which files grew the app; `--json` too).
@@ -374,7 +374,7 @@ window speaks several).
 
 | Message | Fix |
 | --- | --- |
-| `A new version of Bach is available …` | Run `bach update` (or the command the line names for npm, Scoop, winget or Cargo installs). `bach update --check --json` reports `update_available` without changing anything; `BACH_NO_UPDATE_CHECK=1` silences the line. |
+| `A new version of Bach Installer is available …` | Run `bach update` (or the command the line names for npm, Scoop, winget or Cargo installs). `bach update --check --json` reports `update_available` without changing anything; `BACH_NO_UPDATE_CHECK=1` silences the line. |
 | `couldn't get bach-setup.exe …` | No network or no release for this version: put `bach-setup.exe` next to `bach`, or pass `--runtime PATH` / set `BACH_RUNTIME`. |
 | `app.executable is "…", but there's no such file` | Build the app first, or fix `source`/`executable` (paths are relative to `bach.toml` and `source`). |
 | `… is a symbolic link` | Copy real files into the source folder. |
@@ -383,6 +383,6 @@ window speaks several).
 | `requirements[0].…` | Give `kind` one of the listed kinds; `file` and `registry` need `name` and an https `url`. |
 | The installer says a newer version is installed | Raise `version` above the installed one, or pass `--allow-downgrade` on a silent run. |
 | `The bach program for … isn't installed` (npm) | npm skipped the optional platform package (`--omit=optional`). Install again without that flag. |
-| `bach workflow` says the file wasn't written by Bach | A different `.github/workflows/bach-release.yml` exists; keep it, or pass `--force` to replace it. |
+| `bach workflow` says the file wasn't written by Bach Installer | A different `.github/workflows/bach-release.yml` exists; keep it, or pass `--force` to replace it. |
 | The release workflow can't push | The branch is protected: let `github-actions[bot]` push to it, or run the workflow from another branch. |
 | `install.ps1` refuses a folder | It never writes into a folder it didn't make; set `BACH_INSTALL_DIR` to an empty one. |

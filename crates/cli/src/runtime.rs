@@ -61,7 +61,7 @@ fn pinned(platform: Platform) -> Option<&'static str> {
 }
 
 /// Where releases live. A fork can point `BACH_RELEASES` elsewhere.
-const RELEASES: &str = "https://github.com/usebach/bach/releases/download";
+const RELEASES: &str = "https://github.com/usebach/bach-installer/releases/download";
 
 /// The SHA-256 of this version's `bach-setup.exe`, when the release build
 /// that made this `bach` knew it.
@@ -254,7 +254,7 @@ fn download(platform: Platform, url: &str) -> Result<PathBuf> {
     result.with_context(|| {
         format!(
             "couldn't get {file_name} from {url}. Download the Bach {} release from \
-             https://github.com/usebach/bach/releases and keep {file_name} next to bach, \
+             https://github.com/usebach/bach-installer/releases and keep {file_name} next to bach, \
              or pass --runtime",
             env!("CARGO_PKG_VERSION")
         )

@@ -57,15 +57,15 @@ mod tests {
     #[test]
     fn github_remotes_read_the_same_way() {
         for url in [
-            "https://github.com/usebach/bach.git",
-            "https://github.com/usebach/bach",
-            "git@github.com:usebach/bach.git",
-            "ssh://git@github.com/usebach/bach.git",
-            "https://leif:token@github.com/usebach/bach.git",
+            "https://github.com/usebach/bach-installer.git",
+            "https://github.com/usebach/bach-installer",
+            "git@github.com:usebach/bach-installer.git",
+            "ssh://git@github.com/usebach/bach-installer.git",
+            "https://leif:token@github.com/usebach/bach-installer.git",
         ] {
-            assert_eq!(parse_url(url).as_deref(), Some("usebach/bach"), "{url}");
+            assert_eq!(parse_url(url).as_deref(), Some("usebach/bach-installer"), "{url}");
         }
-        assert_eq!(parse_url("https://gitlab.com/usebach/bach.git"), None);
+        assert_eq!(parse_url("https://gitlab.com/usebach/bach-installer.git"), None);
         assert_eq!(parse_url("https://github.com/usebach"), None);
     }
 

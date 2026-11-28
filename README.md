@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="crates/setup/icon/bach-icon-1024.png" width="72" height="72" alt="Bach logo">
+  <img src="crates/setup/icon/bach-icon-1024.png" width="72" height="72" alt="Bach Installer logo">
 </p>
 
-<h1 align="center">Bach</h1>
+<h1 align="center">Bach Installer</h1>
 
 <p align="center">
   <strong>One <code>bach.toml</code> in, one <code>Setup.exe</code> out.</strong><br>
@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/usebach/bach/actions/workflows/ci.yml"><img src="https://github.com/usebach/bach/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <a href="https://github.com/usebach/bach/releases/latest"><img src="https://img.shields.io/github/v/release/usebach/bach?label=release" alt="Latest release"></a>
+  <a href="https://github.com/usebach/bach-installer/actions/workflows/ci.yml"><img src="https://github.com/usebach/bach-installer/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/usebach/bach-installer/releases/latest"><img src="https://img.shields.io/github/v/release/usebach/bach-installer?label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
 </p>
 
@@ -20,16 +20,16 @@
   <a href="https://usebach.app/docs/quickstart">Quickstart</a> ·
   <a href="https://usebach.app/docs">Docs</a> ·
   <a href="https://usebach.app/docs/reference/config/overview">Config reference</a> ·
-  <a href="https://github.com/usebach/bach/releases">Releases</a> ·
+  <a href="https://github.com/usebach/bach-installer/releases">Releases</a> ·
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p align="center">
-  <img src="docs/images/install-light.png" width="440" alt="Bach's install window in light mode: install location, a sample-notes component, desktop shortcut and start-with-Windows options, Cancel and Install buttons">
+  <img src="docs/images/install-light.png" width="440" alt="Bach Installer's install window in light mode: install location, a sample-notes component, desktop shortcut and start-with-Windows options, Cancel and Install buttons">
   <img src="docs/images/install-dark.png" width="440" alt="The same install window in dark mode">
 </p>
 
-Bach packs the folder your app builds into, plus a short config file, into a
+Bach Installer packs the folder your app builds into, plus a short config file, into a
 single setup file. Your users get one calm window in their own language; you
 get updates over older installs and an uninstaller in **Settings › Apps**,
 without writing installer logic.
@@ -81,11 +81,11 @@ Wrote dist\Hello-Setup-1.0.0.exe (9.7 MB)
 GitHub repository, `bach init` also adds a one-click release: commit it, then
 press **Actions › Release › Run workflow** ([releasing](docs/releasing.md)).
 
-## Why Bach
+## Why Bach Installer
 
 [NSIS](https://nsis.sourceforge.io), [Inno Setup](https://jrsoftware.org/isinfo.php)
 and [WiX](https://wixtoolset.org) can build almost any installer, and ask you
-to learn a scripting language or an XML schema to do it. Bach covers the common
+to learn a scripting language or an XML schema to do it. Bach Installer covers the common
 case, an app that installs for one user, with settings instead of code:
 
 - **No script.** Everything is a setting in one TOML file with an
@@ -112,7 +112,7 @@ case, an app that installs for one user, with settings instead of code:
   [`[macos]`](docs/config.md#macos).
 
 **Use something else when** you need drivers, custom install-time scripts, or
-a small stub: a Bach setup file adds about 10 MB to your app. For Group Policy
+a small stub: a Bach Installer setup file adds about 10 MB to your app. For Group Policy
 and Intune, `bach build --msi` also writes a Windows Installer package.
 
 ## What setup files can do
@@ -154,19 +154,19 @@ Run `bach` on its own for this list grouped by what you are doing, and `bach COM
 - **PowerShell** (installs to `%LOCALAPPDATA%\Programs\bach-cli` and adds it to `PATH`):
 
   ```powershell
-  irm https://raw.githubusercontent.com/usebach/bach/main/install.ps1 | iex
+  irm https://raw.githubusercontent.com/usebach/bach-installer/main/install.ps1 | iex
   ```
 
 - **macOS or Linux**, for building installers in CI (a Mac also builds and tests the macOS Setup app):
 
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/usebach/bach-installer/main/install.sh | sh
   ```
 
-- **Scoop:** `scoop install https://raw.githubusercontent.com/usebach/bach/main/scoop/bach.json`
+- **Scoop:** `scoop install https://raw.githubusercontent.com/usebach/bach-installer/main/scoop/bach.json`
 - **npm** also works per project (`--save-dev`, then `npx bach`).
 - **By hand:** download `bach-<version>-windows-x64.zip` from
-  [releases](https://github.com/usebach/bach/releases) and keep `bach.exe` and
+  [releases](https://github.com/usebach/bach-installer/releases) and keep `bach.exe` and
   `bach-setup.exe` together.
 - **GitHub Actions**, on any runner. This builds and publishes a release for
   every pushed tag like `v1.4.0`; the tag is the app's version, and installed
@@ -178,7 +178,7 @@ Run `bach` on its own for this list grouped by what you are doing, and `bach COM
   steps:
     - uses: actions/checkout@v4
     # ... build your app ...
-    - uses: usebach/bach@v0
+    - uses: usebach/bach-installer@v0
       with:
         config: bach.toml
         release: true
@@ -196,15 +196,15 @@ installed by npm, Scoop, winget or Cargo is updated by that tool, and
 `bach update` names the command. `BACH_NO_UPDATE_CHECK=1` turns the notice off.
 
 Coding agents can learn all of this from [skills/bach/SKILL.md](skills/bach/SKILL.md)
-(`npx skills add usebach/bach`).
+(`npx skills add usebach/bach-installer`).
 
 ## Project status
 
-Bach is pre-1.0 and released often; every release is in the
+Bach Installer is pre-1.0 and released often; every release is in the
 [changelog](CHANGELOG.md). Setup files keep working across releases: the
 payload format changes only with a new format version and a clear error for the
 old one. [How it works](docs/how-it-works.md) explains the file format and the
-safety rules, and the [threat model](docs/threat-model.md) says what Bach does
+safety rules, and the [threat model](docs/threat-model.md) says what Bach Installer does
 and does not protect against.
 
 ## Build from source
@@ -212,7 +212,7 @@ and does not protect against.
 With Rust (stable) and the Visual Studio C++ build tools:
 
 ```bash
-git clone https://github.com/usebach/bach.git
+git clone https://github.com/usebach/bach-installer.git
 cd bach
 cargo build --release
 ```

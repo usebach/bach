@@ -1,9 +1,9 @@
 # Threat model
 
-What Bach trusts, what it doesn't, and where the known gaps are. It describes the
+What Bach Installer trusts, what it doesn't, and where the known gaps are. It describes the
 code as it is; where a protection does not exist yet, it says so.
 
-## Who and what Bach deals with
+## Who and what Bach Installer deals with
 
 | Party | Trusted to | Not trusted to |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ code as it is; where a protection does not exist yet, it says so.
 | The staging folder `%LOCALAPPDATA%\Bach\updates` | Hold downloads for this user | Be trusted without a check: a staged file is verified before it runs |
 | Other users and programs on the computer | Nothing | Write into a machine-wide install folder (its access list is checked) |
 
-## What Bach protects
+## What Bach Installer protects
 
 - **The user's files.** Packaged paths are relative and cannot leave the
   install folder. The uninstaller deletes only files its manifest lists, inside a
@@ -44,7 +44,7 @@ code as it is; where a protection does not exist yet, it says so.
   owner, subfolders and files must allow only administrators to change them
   before anything runs elevated.
 - **Other programs' settings.** `[[registry]]` cannot write below `Classes`,
-  `Policies`, Bach's own key or whole vendors such as Microsoft, Google and
+  `Policies`, Bach Installer's own key or whole vendors such as Microsoft, Google and
   Mozilla. `[[env]]` cannot set variables that load code into other programs or
   redirect their traffic.
 
@@ -75,6 +75,6 @@ code as it is; where a protection does not exist yet, it says so.
 
 ## Out of scope
 
-- A developer who builds a malicious app: Bach installs what it is given.
+- A developer who builds a malicious app: Bach Installer installs what it is given.
 - An attacker who is already an administrator on the computer.
 - The safety of the installed app's own files and behavior.

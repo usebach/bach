@@ -2,7 +2,7 @@
   "name": "bach-tools",
   "private": true,
   "type": "module",
-  "description": "Asset scripts for Bach. Bach itself is Rust; this only exports icons and the brand mark.",
+  "description": "Asset scripts for Bach Installer. Bach Installer itself is Rust; this only exports icons and the brand mark.",
   "scripts": {
     "icons": "bun scripts/export-icons.mjs"
   },

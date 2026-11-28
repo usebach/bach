@@ -79,7 +79,7 @@ impl Method {
             Method::Npm => "npm update --global @usebach/cli".into(),
             Method::Scoop => "scoop update bach".into(),
             Method::Winget => "winget upgrade bach".into(),
-            Method::Cargo => "cargo install --git https://github.com/usebach/bach bach-cli --locked --force".into(),
+            Method::Cargo => "cargo install --git https://github.com/usebach/bach-installer bach-cli --locked --force".into(),
             Method::Checkout => "git pull, then cargo build --release".into(),
         }
     }

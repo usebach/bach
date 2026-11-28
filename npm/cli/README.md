@@ -84,10 +84,10 @@ its platform package isn't installed, npm ran with `--omit=optional`: install
 again without that flag.
 
 Without Node.js, the install scripts do the same job:
-[github.com/usebach/bach](https://github.com/usebach/bach#quick-start).
+[github.com/usebach/bach-installer](https://github.com/usebach/bach-installer#quick-start).
 
 ## Links
 
 - Documentation: https://usebach.app/docs
-- Source and issues: https://github.com/usebach/bach
+- Source and issues: https://github.com/usebach/bach-installer
 - License: MIT

@@ -26,7 +26,7 @@
 #       schedule:
 #         interval: weekly
 #
-# `bach workflow --pin float` writes the moving tag (usebach/bach@v0) instead.
+# `bach workflow --pin float` writes the moving tag (usebach/bach-installer@v0) instead.
 
 name: Release
 

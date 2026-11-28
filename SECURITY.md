@@ -1,20 +1,20 @@
 # Security policy
 
-Bach writes installers that other people run on their computers, so a
+Bach Installer writes installers that other people run on their computers, so a
 security bug here can reach a lot of machines. Reports are welcome and taken
 seriously.
 
 ## Supported versions
 
-Bach is early. Only the latest release and `main` get security fixes.
+Bach Installer is early. Only the latest release and `main` get security fixes.
 
 | Version | Supported |
 | --- | --- |
-| Latest [release](https://github.com/usebach/bach/releases) | Yes |
+| Latest [release](https://github.com/usebach/bach-installer/releases) | Yes |
 | `main` | Yes |
 | Older releases | No, update to the latest |
 
-Setup files you built with an older Bach keep the runtime they were built
+Setup files you built with an older Bach Installer keep the runtime they were built
 with. After a fix ships, rebuild and re-release your setup file with the new
 version of `bach`.
 
@@ -23,12 +23,12 @@ version of `bach`.
 **Please don't open a public issue or pull request for a security problem.**
 
 Report it privately through GitHub:
-[Report a vulnerability](https://github.com/usebach/bach/security/advisories/new).
+[Report a vulnerability](https://github.com/usebach/bach-installer/security/advisories/new).
 Only the maintainers can see the report.
 
 Include what you can:
 
-- What the problem is and which part of Bach it touches (`bach`,
+- What the problem is and which part of Bach Installer it touches (`bach`,
   `bach-setup`, the installer scripts, the GitHub Action).
 - The version or commit, and your Windows version if it matters.
 - Steps to reproduce, ideally a small `bach.toml` or a crafted setup file.
@@ -42,7 +42,7 @@ disclose the details.
 
 ## What counts as a vulnerability
 
-Bach's [safety rules](docs/how-it-works.md#safety-rules) are promises. A
+Bach Installer's [safety rules](docs/how-it-works.md#safety-rules) are promises. A
 report that breaks one of them is a vulnerability, for example:
 
 - A setup file or payload that writes, replaces or deletes anything outside
@@ -64,13 +64,13 @@ report that breaks one of them is a vulnerability, for example:
 ## What doesn't
 
 - A developer putting something harmful into their own `bach.toml` or app
-  files. Bach packages what you give it; the setup file is as trustworthy as
+  files. Bach Installer packages what you give it; the setup file is as trustworthy as
   the app inside.
 - Unsigned setup files triggering SmartScreen. See [signing](docs/signing.md).
 - The unsigned `uninstall.exe` an install leaves behind. It is unsigned by
   design, because a signature only covers the exact file it was made for.
 - Problems that need an attacker who already runs code as the same user.
-- Findings in a dependency that Bach doesn't use in a way that is
+- Findings in a dependency that Bach Installer doesn't use in a way that is
   reachable. If you're unsure, report it anyway.
 
 If you're not sure whether something is a vulnerability, report it

@@ -41,7 +41,7 @@ function findBinary({
   const key = platformKey(platform, arch);
   if (!PLATFORMS.includes(key)) {
     return new Error(
-      `There is no prebuilt bach for ${key}. Build it with: cargo install --git https://github.com/usebach/bach bach-cli`,
+      `There is no prebuilt bach for ${key}. Build it with: cargo install --git https://github.com/usebach/bach-installer bach-cli`,
     );
   }
   const name = packageName(key);

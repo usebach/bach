@@ -4,7 +4,7 @@ Windows SmartScreen warns about unsigned programs from publishers it doesn't
 know yet. A code-signing certificate makes the warning go away over time and
 shows your name as the publisher when people download and run your setup file.
 
-Bach setup files sign like any other program. Build first, then sign the
+Bach Installer setup files sign like any other program. Build first, then sign the
 finished file:
 
 ```powershell
@@ -24,10 +24,10 @@ the name isn't recognised. Use its full path, which looks like this, or open
 (Your SDK folder has its own version number. `Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin"` lists them.) `/a` picks the best code-signing
 certificate in your certificate store, so you need one installed (from a
 certificate authority, or on a hardware token); without it signtool says that
-no certificates were found. Bach itself finds `signtool` for you when it signs
+no certificates were found. Bach Installer itself finds `signtool` for you when it signs
 (see below).
 
-The signature is appended after Bach's payload and covers it, so any change
+The signature is appended after Bach Installer's payload and covers it, so any change
 to the file after signing breaks the signature. Check it with:
 
 ```bash
@@ -37,7 +37,7 @@ signtool verify /pa "dist\My App-Setup-1.0.0.exe"
 ## Sign during the build (optional)
 
 Signing is never required: without a `[signing]` section `bach build` writes
-unsigned setup files, as before. If you'd rather not sign by hand, tell Bach
+unsigned setup files, as before. If you'd rather not sign by hand, tell Bach Installer
 which program signs and with what. `bach build --sign` (or `BACH_SIGN=1`, which
 suits CI) then signs every setup file it writes, the offline and the online
 installer, before it writes the update feed, so the feed already carries the
@@ -48,15 +48,15 @@ signed file's SHA-256:
 program = "signtool"      # the default; any program that signs a file
 arguments = 'sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a'
 
-# After `signtool` ran, Bach asks Windows (Get-AuthenticodeSignature) what the
+# After `signtool` ran, Bach Installer asks Windows (Get-AuthenticodeSignature) what the
 # file now carries. No signature or a broken one fails the build. A valid
 # signature without a timestamp, or one Windows doesn't trust yet (a self-signed
 # certificate), only gives a warning. Other signing programs aren't checked.
 ```
 
-For `signtool` the arguments start with the word `sign`; Bach refuses them
+For `signtool` the arguments start with the word `sign`; Bach Installer refuses them
 otherwise, because signtool answers "Invalid command". When `signtool` isn't on
-`PATH`, Bach uses the newest one in the Windows SDK's folder and says which. Bach
+`PATH`, Bach Installer uses the newest one in the Windows SDK's folder and says which. Bach Installer
 runs `program` with `arguments` and the setup file added at the end
 (write `{file}` where it belongs when it isn't last), without a shell, and
 prints the command first. A signer that fails fails the build with its exit
@@ -65,8 +65,8 @@ code, so an unsigned file never goes out by accident.
 Signing only ever runs when you ask for it with `--sign` or `BACH_SIGN=1`.
 That is on purpose: a `bach.toml` that came from somewhere else can name any
 program, and building it must not run that program behind your back. Keep secrets out of `bach.toml` by writing
-`{env:NAME}`: Bach reads the variable when it builds and fails when it isn't
-set. The command Bach prints shows `{env:NAME}` as written, never the value.
+`{env:NAME}`: Bach Installer reads the variable when it builds and fails when it isn't
+set. The command Bach Installer prints shows `{env:NAME}` as written, never the value.
 
 ```toml
 [signing]
@@ -93,7 +93,7 @@ Notes:
   because a signature only covers the exact file it was made for.
 - Signing the setup file does not sign the programs inside it. Windows 11's
   Smart App Control looks at every program that starts, so sign your own
-  `.exe` and `.dll` files in your build, before Bach packs them. With
+  `.exe` and `.dll` files in your build, before Bach Installer packs them. With
   `[signing]` in `bach.toml`, `bach check` and `bach build` warn when packed
   programs or libraries have no signature (it names the first three). It only
   reads the file's signature entry; Windows still decides whether it is valid.
@@ -131,15 +131,15 @@ warning: [updates] signer is Example Inc., but this Setup app has no Developer I
 The name has to be on both certificates when you ship for Windows and macOS
 ([Signed updates on a Mac](updates.md#signed-updates-on-a-mac)).
 
-## Check a Bach download
+## Check a Bach Installer download
 
-Every file of a Bach release (the zip, `bach-setup.exe`, the example installer,
+Every file of a Bach Installer release (the zip, `bach-setup.exe`, the example installer,
 the macOS and Linux downloads and the Windows ARM64 zip) has a signed
 statement from GitHub's artifact attestations: which commit and which workflow
 run built it. With the GitHub CLI:
 
 ```bash
-gh attestation verify bach-0.7.0-windows-x64.zip --repo usebach/bach
+gh attestation verify bach-0.7.0-windows-x64.zip --repo usebach/bach-installer
 ```
 
 The release also lists what `bach` and `bach-setup.exe` are built from, as

@@ -88,7 +88,7 @@ for (const key of platforms) {
     "npm install --global @usebach/cli",
     "```",
     "",
-    "Docs: https://bach.mintlify.app/docs - Source: https://github.com/usebach/bach",
+    "Docs: https://bach.mintlify.app/docs - Source: https://github.com/usebach/bach-installer",
     "",
   ].join("\n");
   writeFileSync(join(dir, "README.md"), readme);

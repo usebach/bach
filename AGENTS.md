@@ -1,19 +1,19 @@
 # AGENTS.md
 
 Instructions for AI coding agents (Claude Code, Codex, and others) working on
-**Bach**. Read this before making changes. `CLAUDE.md` points here.
+**Bach Installer**. Read this before making changes. `CLAUDE.md` points here.
 
-Bach is a shared project. You may be working alongside other people or agents.
+Bach Installer is a shared project. You may be working alongside other people or agents.
 Respect their work, stay within the scope of your task, and never discard or
 silently overwrite unrelated changes. Before starting, inspect the local Git
 state and check whether the repository is current with
-https://github.com/usebach/bach. Fetch or update safely where appropriate;
+https://github.com/usebach/bach-installer. Fetch or update safely where appropriate;
 never blindly pull, reset, force-push, or merge over uncommitted work. If the
 remote is unavailable, continue from the local checkout and say so.
 
-## What Bach is
+## What Bach Installer is
 
-**Bach builds modern, clean Windows installers, and macOS ones.** A developer
+**Bach Installer builds modern, clean Windows installers, and macOS ones.** A developer
 writes one `bach.toml`, runs `bach build`, and gets a single `Setup.exe` with a
 calm, native-looking install window, a built-in updater and a clean uninstaller.
 With a `[macos]` section the same run also writes a Setup app in a `.dmg`, which
@@ -88,9 +88,9 @@ crates/setup    bach-setup: the installer window
   src/ui/         UI primitives (buttons, rows, checkbox, motion, …)
   assets/         Inter, Tabler icons, the Bach mark's petals
 examples/hello  a tiny app and the bach.toml that packages it
-skills/bach     SKILL.md: how agents install and use Bach (skills.sh)
+skills/bach     SKILL.md: how agents install and use Bach Installer (skills.sh)
 schema/         bach.schema.json for editors (a test keeps it complete)
-scoop/          Bach's own Scoop manifest (the release updates it)
+scoop/          Bach Installer's own Scoop manifest (the release updates it)
 action.yml      the GitHub Action
 docs/           getting started, config reference, how it works, signing
                 (Markdown in the repo; the full docs site is a Mintlify
@@ -190,7 +190,7 @@ change, rename or remove any of these:
 - a `bach` command, flag, argument, output line or exit code;
 - a flag or exit code of a setup file or `uninstall.exe`;
 - a window text (`Key`), a page or state of the installer window;
-- an environment variable, a file, folder or registry location Bach uses;
+- an environment variable, a file, folder or registry location Bach Installer uses;
 - install, update, removal or safety behaviour (`paths.rs`, `work/`,
   `launch.rs`, `updater.rs`);
 - install scripts, the GitHub Action, Scoop, winget output, or the update
