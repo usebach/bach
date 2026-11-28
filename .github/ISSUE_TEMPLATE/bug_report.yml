@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for taking the time. For a security problem, don't file it here:
-        use [private reporting](https://github.com/usebach/bach/security/advisories/new).
+        use [private reporting](https://github.com/usebach/bach-installer/security/advisories/new).
   - type: dropdown
     id: part
     attributes:

@@ -35,7 +35,7 @@ pub struct Options<'a> {
     pub macos: bool,
 }
 
-/// How `uses: usebach/bach@...` is written.
+/// How `uses: usebach/bach-installer@...` is written.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Pin {
     /// The commit of this Bach's release, so the workflow, which signs and
@@ -162,11 +162,11 @@ pub fn write(options: &Options) -> Result<Written> {
 }
 
 /// How the action is named when it isn't pinned.
-const FLOATING: &str = "usebach/bach@v0";
+const FLOATING: &str = "usebach/bach-installer@v0";
 
-/// `usebach/bach@<sha> # v0.6.0`: the form Dependabot reads and updates.
+/// `usebach/bach-installer@<sha> # v0.6.0`: the form Dependabot reads and updates.
 fn pinned_action(sha: &str, version: &str) -> String {
-    format!("usebach/bach@{sha} # v{version}")
+    format!("usebach/bach-installer@{sha} # v{version}")
 }
 
 /// The commit a release tag points at, asked of GitHub with `git ls-remote`
@@ -176,7 +176,7 @@ fn release_commit(version: &str) -> Option<String> {
     let tag = format!("refs/tags/v{version}");
     let peeled = format!("{tag}^{{}}");
     let mut child = Command::new("git")
-        .args(["ls-remote", "https://github.com/usebach/bach.git", &tag, &peeled])
+        .args(["ls-remote", "https://github.com/usebach/bach-installer.git", &tag, &peeled])
         .env("GIT_TERMINAL_PROMPT", "0")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -741,17 +741,17 @@ mod tests {
     fn the_action_is_pinned_to_a_commit_and_floats_only_when_asked() {
         let sha = "0123456789abcdef0123456789abcdef01234567";
         let pinned = pinned_action(sha, "0.6.0");
-        assert_eq!(pinned, format!("usebach/bach@{sha} # v0.6.0"));
+        assert_eq!(pinned, format!("usebach/bach-installer@{sha} # v0.6.0"));
         let project = Project { stack: None, node: None, forge: false, tauri_uses_node: false };
         let text = render("", &project, &pinned, None, false).unwrap();
         // Both uses of the action, with a 40-digit commit and the version as a comment.
-        assert_eq!(text.matches(&format!("uses: usebach/bach@{sha} # v0.6.0")).count(), 2, "{text}");
-        assert!(!text.contains("uses: usebach/bach@v0"));
+        assert_eq!(text.matches(&format!("uses: usebach/bach-installer@{sha} # v0.6.0")).count(), 2, "{text}");
+        assert!(!text.contains("uses: usebach/bach-installer@v0"));
         let floating = render("", &project, FLOATING, None, false).unwrap();
         assert_eq!(
             floating
                 .matches(
-                    "uses: usebach/bach@v0
+                    "uses: usebach/bach-installer@v0
 "
                 )
                 .count(),
@@ -762,7 +762,7 @@ mod tests {
         let done = write(&Options { dir: &dir, force: false, pin: Pin::Float, winget: None, macos: false }).unwrap();
         assert_eq!((done.action.as_str(), done.pin_failed), (FLOATING, false));
         assert!(written(&dir).contains(
-            "uses: usebach/bach@v0
+            "uses: usebach/bach-installer@v0
 "
         ));
         std::fs::remove_dir_all(&dir).unwrap();

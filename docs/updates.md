@@ -1,6 +1,6 @@
 # Updates
 
-Bach apps can keep themselves up to date. This page covers publishing
+Bach Installer apps can keep themselves up to date. This page covers publishing
 updates from GitHub, what the installed app does with them, and how an
 update survives a closed window, a closed app or a power cut.
 
@@ -67,7 +67,7 @@ github = "owner/repo"
 Then publish. The quickest way is the one-click release workflow that
 `bach init` or `bach workflow` writes into your repository: it raises the
 version everywhere, builds your app and publishes the release (see
-[releasing](releasing.md)). To write the workflow yourself, use the Bach
+[releasing](releasing.md)). To write the workflow yourself, use the Bach Installer
 action. This one builds on every pushed tag like `v1.4.0`:
 
 ```yaml
@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # ... build your app into the folder [files] source names ...
-      - uses: usebach/bach@v0
+      - uses: usebach/bach-installer@v0
         with:
           config: bach.toml
           release: true
@@ -123,15 +123,15 @@ signing in.
 | `compare` | `true` compares the new setup file with the one of the latest release (`bach diff`): files added, removed and changed, and how much bigger or smaller it got. The report goes to the job summary and, on a pull request, into one comment that later pushes update. The release's file is found by name: `Hello-Setup-1.4.0.exe` is looked for as `Hello-Setup-*.exe`. Nothing is compared when there is no earlier release or it has no such file. The comment needs `pull-requests: write`; a pull request from a fork gets only the summary. |
 | `tag` | The release's tag (default `v` plus the version). |
 | `prerelease`, `draft`, `latest` | How the release is published. |
-| `version` | Which Bach builds: `0.2.1` exactly, `0.2` or `0` for the newest of that line, `latest`. Default: the tag you pinned the action with. |
+| `version` | Which Bach Installer builds: `0.2.1` exactly, `0.2` or `0` for the newest of that line, `latest`. Default: the tag you pinned the action with. |
 
 Outputs: `setup`, `version`, `feed`, `tag`, `release-url`, `bach-version`.
 
-### Pick the Bach version
+### Pick the Bach Installer version
 
-`usebach/bach@v0` always builds with the newest 0.x release of Bach.
+`usebach/bach-installer@v0` always builds with the newest 0.x release of Bach Installer.
 `@v0.2` stays on 0.2.x and `@v0.2.1` never moves. A full commit SHA never
-moves either: it builds with the Bach version in that commit's `Cargo.toml`,
+moves either: it builds with the Bach Installer version in that commit's `Cargo.toml`,
 so the pinned code and the program it downloads belong together. `version:`
 picks another one. The install scripts take the same: `BACH_VERSION=0.2`
 installs the newest 0.2.x.
@@ -447,7 +447,7 @@ bach feed "dist/Hello-Setup-1.4.0.exe" --rollout 10
 Each computer has a fixed number from 0 to 99 for each version (made from Windows'
 machine id, the app's id and the version, so the first computers differ from
 release to release and are not always the same test group; installed copies
-built by an older Bach keep using the number without the version), and takes the update by itself when that number is below the
+built by an older Bach Installer keep using the number without the version), and takes the update by itself when that number is below the
 rollout. Raise it (`--rollout 50`), then write the feed again without
 `--rollout` for everybody. A computer that was in the first ten percent stays
 in all later steps. Computers outside it say "up to date" for
@@ -486,7 +486,7 @@ The feed then offers it next to the full file:
 What the installed app does with it:
 
 - It downloads the patch only when 1.3.0 is installed and every installed file
-  has a checksum on record (setup files made with this Bach version or newer do).
+  has a checksum on record (setup files made with this Bach Installer version or newer do).
   Every other computer downloads the full file, as before.
 - The patch is a setup file for the same app, checked like any update (SHA-256
   against the feed, same app id, the feed's version). Before it places anything

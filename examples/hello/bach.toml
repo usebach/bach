@@ -19,7 +19,7 @@ version = "1.0.0"
 publisher = "Bach"
 description = "A tiny app that says hello."
 executable = "hello.exe"
-website = "https://github.com/usebach/bach"
+website = "https://github.com/usebach/bach-installer"
 
 [files]
 source = "app"

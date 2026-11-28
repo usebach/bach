@@ -1,6 +1,6 @@
 [package]
 name = "bach-setup"
-description = "The setup runtime: the installer and uninstaller window every Bach setup file runs."
+description = "The setup runtime: the installer and uninstaller window every Bach Installer setup file runs."
 edition.workspace = true
 version.workspace = true
 license.workspace = true

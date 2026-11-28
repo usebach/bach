@@ -1,6 +1,6 @@
 [package]
 name = "bach-pack"
-description = "The bach.toml config, the payload format and the path rules shared by the Bach builder and the setup runtime."
+description = "The bach.toml config, the payload format and the path rules shared by the Bach Installer builder and the setup runtime."
 edition.workspace = true
 version.workspace = true
 license.workspace = true

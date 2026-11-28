@@ -290,7 +290,7 @@ pub fn updates(section: Option<&UpdatesSection>, machine: bool) -> Result<Option
     let github = match section.github.as_deref().map(str::trim) {
         None | Some("") => None,
         Some(repo) if is_github_repo(repo) => Some(repo.to_string()),
-        Some(repo) => bail!("updates.github is \"{repo}\"; use the repository as owner/name, like \"usebach/bach\""),
+        Some(repo) => bail!("updates.github is \"{repo}\"; use the repository as owner/name, like \"usebach/bach-installer\""),
     };
     let feed = match (section.feed.as_deref().map(str::trim), &github) {
         (Some(feed), _) if !feed.is_empty() => {

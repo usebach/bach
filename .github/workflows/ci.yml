@@ -105,7 +105,7 @@ jobs:
         run: |
           # The action runs against the bach just built, as a pinned release would.
           Copy-Item examples/hello/bach.toml examples/hello/bach.ci.toml
-          Add-Content examples/hello/bach.ci.toml "`n[updates]`ngithub = `"usebach/bach`"`n"
+          Add-Content examples/hello/bach.ci.toml "`n[updates]`ngithub = `"usebach/bach-installer`"`n"
           "$PWD\target\release" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
 
       - name: Build with the action
@@ -139,7 +139,7 @@ jobs:
           $feed = Get-Content $env:FEED -Raw | ConvertFrom-Json
           Check ($feed.version -eq '7.8.9') 'the feed says 7.8.9'
           Check ($feed.notes -eq 'CI check of the action') 'the feed carries the notes'
-          Check ($feed.url -eq 'https://github.com/usebach/bach/releases/download/v7.8.9/Hello-Setup-7.8.9.exe') "the feed points at the tag's download ($($feed.url))"
+          Check ($feed.url -eq 'https://github.com/usebach/bach-installer/releases/download/v7.8.9/Hello-Setup-7.8.9.exe') "the feed points at the tag's download ($($feed.url))"
           Check ($feed.sha256 -eq (Get-FileHash -Algorithm SHA256 $env:SETUP).Hash.ToLower()) "the feed has the file's SHA-256"
 
   # `bach` itself builds and runs on Linux, and the setup window only on Windows

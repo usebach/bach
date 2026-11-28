@@ -20,7 +20,7 @@
 #
 # Once every download is on the release, a normal (not pre-, not draft)
 # release moves the tags `v<major>` and `v<major>.<minor>` to it, so
-# `uses: usebach/bach@v0` and `@v0.2` always get the newest release of their
+# `uses: usebach/bach-installer@v0` and `@v0.2` always get the newest release of their
 # line, and `bach`, which the action installs to match. Pre-releases never
 # move them.
 
@@ -151,7 +151,7 @@ jobs:
           $version = "${{ steps.version.outputs.version }}"
           $scoop = Get-Content scoop/bach.json -Raw | ConvertFrom-Json
           $scoop.version = $version
-          $scoop.url = "https://github.com/usebach/bach/releases/download/v$version/bach-$version-windows-x64.zip"
+          $scoop.url = "https://github.com/usebach/bach-installer/releases/download/v$version/bach-$version-windows-x64.zip"
           $scoop.hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
           ($scoop | ConvertTo-Json -Depth 5) + "`n" | Set-Content -NoNewline -Encoding utf8NoBOM scoop/bach.json
 
@@ -178,7 +178,7 @@ jobs:
             CHANGELOG.md
 
       # A signed statement, kept by GitHub, of which commit and workflow built
-      # each file: `gh attestation verify FILE --repo usebach/bach`.
+      # each file: `gh attestation verify FILE --repo usebach/bach-installer`.
       - name: Attest where the files come from
         if: ${{ !inputs.dry_run }}
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2

@@ -13,10 +13,10 @@ use serde_json::Value;
 use crate::runtime;
 use crate::version::Version;
 
-const API: &str = "https://api.github.com/repos/usebach/bach/releases";
-const DOWNLOADS: &str = "https://github.com/usebach/bach/releases/download";
-const PAGE: &str = "https://github.com/usebach/bach/releases/tag";
-const PAGE_LIST: &str = "https://github.com/usebach/bach/releases";
+const API: &str = "https://api.github.com/repos/usebach/bach-installer/releases";
+const DOWNLOADS: &str = "https://github.com/usebach/bach-installer/releases/download";
+const PAGE: &str = "https://github.com/usebach/bach-installer/releases/tag";
+const PAGE_LIST: &str = "https://github.com/usebach/bach-installer/releases";
 const NPM_LATEST: &str = "https://registry.npmjs.org/@usebach/cli/latest";
 
 /// One published release.
@@ -66,7 +66,7 @@ impl Release {
         let Some(name) = candidates.iter().find(|name| self.assets.contains(name)) else {
             let wanted = candidates.first().map(String::as_str).unwrap_or("");
             if wanted.is_empty() {
-                bail!("there's no prebuilt bach for this system; build it with: cargo install --git https://github.com/usebach/bach bach-cli --locked --force");
+                bail!("there's no prebuilt bach for this system; build it with: cargo install --git https://github.com/usebach/bach-installer bach-cli --locked --force");
             }
             bail!("Bach {} has no download for this system ({wanted}), so nothing was changed", self.version);
         };
@@ -154,9 +154,9 @@ mod tests {
         // The address comes from the tag, never from the answer.
         assert_eq!(
             format!("{DOWNLOADS}/{}/{}", release.tag, candidate[0]),
-            "https://github.com/usebach/bach/releases/download/v0.8.0/bach-0.8.0-windows-x64.zip"
+            "https://github.com/usebach/bach-installer/releases/download/v0.8.0/bach-0.8.0-windows-x64.zip"
         );
-        assert_eq!(release.page(), "https://github.com/usebach/bach/releases/tag/v0.8.0");
+        assert_eq!(release.page(), "https://github.com/usebach/bach-installer/releases/tag/v0.8.0");
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-We want everyone to be able to take part in Bach, whatever their age, body,
+We want everyone to be able to take part in Bach Installer, whatever their age, body,
 disability, ethnicity, gender identity and expression, level of experience,
 nationality, appearance, race, religion or sexual identity and orientation.
 We pledge to act and interact in ways that make this a welcoming, open and
@@ -31,7 +31,7 @@ Things that are not acceptable:
 ## Scope
 
 This applies in every space the project runs: issues, pull requests,
-discussions, reviews and commit messages, and when someone represents Bach
+discussions, reviews and commit messages, and when someone represents Bach Installer
 in public.
 
 ## Enforcement
@@ -44,7 +44,7 @@ temporarily limiting or permanently banning the person responsible. We'll
 say why when we do.
 
 To report a problem, contact the maintainers privately by opening a
-[private security advisory](https://github.com/usebach/bach/security/advisories/new)
+[private security advisory](https://github.com/usebach/bach-installer/security/advisories/new)
 and marking it as a conduct report, or by reaching out to the owners of the
 [usebach](https://github.com/usebach) organisation on GitHub. Don't report
 it in a public thread. Every report is reviewed and handled in confidence,

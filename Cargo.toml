@@ -7,7 +7,7 @@ default-members = ["crates/pack", "crates/cli", "crates/setup"]
 edition = "2021"
 version = "0.11.5"
 license = "MIT"
-repository = "https://github.com/usebach/bach"
+repository = "https://github.com/usebach/bach-installer"
 
 [workspace.dependencies]
 anyhow = "1"

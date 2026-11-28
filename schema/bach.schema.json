@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json",
+  "$id": "https://raw.githubusercontent.com/usebach/bach-installer/main/schema/bach.schema.json",
   "title": "bach.toml",
-  "description": "How Bach builds a Windows installer. Every setting: https://github.com/usebach/bach/blob/main/docs/config.md",
+  "description": "How Bach Installer builds a Windows installer. Every setting: https://github.com/usebach/bach-installer/blob/main/docs/config.md",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -605,7 +605,7 @@
     "layout": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Optional. How the window is sized, arranged and animated. Without it the window is Bach's classic column. Start from a preset and change any setting.",
+      "description": "Optional. How the window is sized, arranged and animated. Without it the window is Bach Installer's classic column. Start from a preset and change any setting.",
       "properties": {
         "preset": {
           "enum": [
@@ -1366,7 +1366,7 @@
         "github": {
           "type": "string",
           "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
-          "description": "owner/repo: updates come from that repository's GitHub releases (the Bach action publishes them)."
+          "description": "owner/repo: updates come from that repository's GitHub releases (the Bach Installer action publishes them)."
         },
         "feed": {
           "type": "string",

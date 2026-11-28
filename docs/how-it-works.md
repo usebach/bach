@@ -1,4 +1,4 @@
-# How Bach works
+# How Bach Installer works
 
 ## One executable, three parts
 
@@ -196,12 +196,12 @@ started it can wait for its exit code.
 - `PATH` is edited as raw text: exactly one entry is added or removed, the
   value's type (`REG_EXPAND_SZ`) is kept, and nothing is written when
   there's nothing to change.
-- Registry keys Bach creates for link schemes and file types carry a
+- Registry keys Bach Installer creates for link schemes and file types carry a
   `BachApp` mark; keys without it belong to another program and are never
   changed or deleted.
 - Registry values, environment variables and right-click entries from
   `bach.toml` stay below `Software\<your key>` (never `Classes`, `Policies`,
-  Windows' own keys or Bach's) and are removed only while they still hold what
+  Windows' own keys or Bach Installer's) and are removed only while they still hold what
   setup wrote. Right-click entries carry the `BachApp` mark like link schemes.
 - Administrator rights are asked for once and only when the app says so
   (`installer.scope = "machine"`, or `elevated = true` on one run step).
@@ -232,7 +232,7 @@ checks the files already in the install folder against it, and a file that
 matches is not written again, also when the setup file is a full one. That
 shortens updates and means an unchanged program that is running is no obstacle.
 The free-space check counts only what is written. Setup files built before
-Bach recorded hashes write every file as before.
+Bach Installer recorded hashes write every file as before.
 
 ## Removal is all or nothing
 
@@ -287,7 +287,7 @@ Every setup file contains the runtime, so `bach` is strict about it:
 `bach update` replaces the `bach` that runs it. It asks GitHub for the newest
 release (not a pre-release), takes only its tag and file names from the
 answer, and builds the download address itself
-(`https://github.com/usebach/bach/releases/download/vX.Y.Z/...`). The archive
+(`https://github.com/usebach/bach-installer/releases/download/vX.Y.Z/...`). The archive
 for this system is downloaded into a staging folder beside `bach`, checked
 against the `.sha256` published next to it, unpacked with the system's `tar`
 (or PowerShell on a Windows without it), and the new program must start and
@@ -377,7 +377,7 @@ with a throwaway `HOME`; CI runs it on Apple silicon and on Intel.
 A setup file is the setup runtime with the app's files appended, and the
 runtime is a native Windows program. The `bach-setup.exe` that `bach build`
 downloads is built for x64, which Windows 11 on ARM runs through its emulation.
-For a native ARM64 setup file, build with the ARM64 runtime: every Bach release
+For a native ARM64 setup file, build with the ARM64 runtime: every Bach Installer release
 has a `bach-<version>-windows-arm64.zip` with an ARM64 `bach.exe` and
 `bach-setup.exe`.
 

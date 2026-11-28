@@ -1,14 +1,14 @@
 {
   "name": "@usebach/cli",
   "version": "0.11.5",
-  "description": "Build modern, clean Windows installers from one bach.toml. Installs the bach command.",
+  "description": "Bach Installer builds modern, clean Windows installers from one bach.toml. Installs the bach command.",
   "keywords": ["installer", "setup", "windows", "bach", "updater", "cli"],
   "license": "MIT",
-  "homepage": "https://github.com/usebach/bach#readme",
-  "bugs": "https://github.com/usebach/bach/issues",
+  "homepage": "https://github.com/usebach/bach-installer#readme",
+  "bugs": "https://github.com/usebach/bach-installer/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/usebach/bach.git",
+    "url": "git+https://github.com/usebach/bach-installer.git",
     "directory": "npm/cli"
   },
   "bin": {

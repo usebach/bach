@@ -27,15 +27,15 @@ gh workflow run bach-release.yml -f bump=patch -f dry_run=true
 ```
 
 Run `bach workflow` again whenever you want the newest version of the
-workflow. It only replaces a file that starts with Bach's own first line; any
+workflow. It only replaces a file that starts with Bach Installer's own first line; any
 other file with that name is left alone unless you pass `--force`.
 
-The workflow publishes with a write token, so it names Bach's action by the
-commit of the Bach release you ran, as `usebach/bach@<40-digit commit> # v0.x.y`
+The workflow publishes with a write token, so it names Bach Installer's action by the
+commit of the Bach Installer release you ran, as `usebach/bach-installer@<40-digit commit> # v0.x.y`
 (looked up with `git ls-remote`; without network it writes `@v0`, says so, and
 pins the next time you run it online). The file explains how to keep the pin
 current with Dependabot (`package-ecosystem: github-actions`). `bach workflow
---pin float` writes `usebach/bach@v0`, which moves with every release.
+--pin float` writes `usebach/bach-installer@v0`, which moves with every release.
 
 ## The inputs
 
@@ -60,15 +60,15 @@ current with Dependabot (`package-ecosystem: github-actions`). `bach workflow
    the project: `cargo build --release` for Rust, `npx tauri build --no-bundle`
    for Tauri, `npx electron-builder --win --dir` (or Electron Forge's
    `package`) for Electron, `dotnet publish -c Release -r win-x64
-   --self-contained` for .NET. For a project Bach doesn't recognise the
+   --self-contained` for .NET. For a project Bach Installer doesn't recognise the
    **Build your app** step holds a `TODO`: put your build commands there.
    A self-contained .NET publish carries the runtime, so `bach init` leaves the
    `dotnet` requirement commented out. If you change the step to
-   `--self-contained false`, uncomment it. Bach 0.11.3 and earlier wrote the
+   `--self-contained false`, uncomment it. Bach Installer 0.11.3 and earlier wrote the
    block uncommented: delete it from such a `bach.toml`.
 5. Pushes the commit and the tag together. Nothing is pushed if an earlier
    step failed.
-6. Builds the setup file with the [Bach action](updates.md#action-settings),
+6. Builds the setup file with the [Bach Installer action](updates.md#action-settings),
    writes `latest.json` and publishes both as the GitHub release.
 
 If step 6 fails, the tag is deleted again, but the version files on the branch
@@ -160,7 +160,7 @@ release and opens the pull request that updates `Example.Hello` in
   opens nothing, so the release is never held back.
 - The job is skipped for a dry run, a draft, and any pre-release or version
   with a `-` in it.
-- Run `bach workflow` again later without `--winget` and the job stays: Bach
+- Run `bach workflow` again later without `--winget` and the job stays: Bach Installer
   keeps the package id it finds in the file. The id is `Publisher.App`
   (letters, digits, `-` and `_`, parts joined by dots).
 

@@ -1,6 +1,6 @@
 # bach.toml reference
 
-Every setting Bach reads. Paths are relative to the `bach.toml` file. Unknown
+Every setting Bach Installer reads. Paths are relative to the `bach.toml` file. Unknown
 settings are an error, so a typo never goes unnoticed, and every mistake is
 reported as one sentence naming the setting at fault.
 
@@ -37,8 +37,8 @@ default, so a five-line config already builds a complete installer.
 
 Optional, first in the file: `config_version = 1`. It says which version of this
 format the file is written for. Left out, it means the current one, so existing
-files keep working. `bach init` writes it. A version this Bach doesn't read stops
-`bach check` and `bach build` with one sentence (update Bach for a newer one).
+files keep working. `bach init` writes it. A version this Bach Installer doesn't read stops
+`bach check` and `bach build` with one sentence (update Bach Installer for a newer one).
 
 ## [app]
 
@@ -99,7 +99,7 @@ device name such as `NUL` or `COM1`. `bach check` reports the first one that
 isn't, before a setup file is built.
 
 The source folder may not contain symbolic links or a file named
-`uninstall.exe` at its top (Bach adds its own).
+`uninstall.exe` at its top (Bach Installer adds its own).
 
 ## [installer]
 
@@ -147,7 +147,7 @@ Wrote dist\Hello-Web-Setup.exe (8.9 MB), the online installer
 The online installer needs a network and the feed; if either is missing it
 says so and "Try again" resumes the download. Choices that a newer version
 added (a new component that is ticked by default) are carried over. The
-feed describes the full setup file, never the online one. The Bach action
+feed describes the full setup file, never the online one. The Bach Installer action
 signs and publishes both files.
 
 ### Where it installs
@@ -279,7 +279,7 @@ own app without changing `bach.toml`.
 
 | Style | What it looks like | Suits |
 | --- | --- | --- |
-| `bach` | Bach's own look: white or graphite, black buttons, Inter. The default. | any app |
+| `bach` | Bach Installer's own look: white or graphite, black buttons, Inter. The default. | any app |
 | `aurora` | A soft violet-to-blue wash, frosted cards and pill buttons. | Tauri, Electron, Wails and Flutter apps |
 | `terminal` | A monospaced face (Cascadia Mono), near-black with a green glow on every edge, and a green prompt. Dark by default. | command-line tools |
 | `arcade` | Neon pink on a deep violet glow, with a heavy heading and a dark-on-pink button. Dark by default. | indie and web-tech games |
@@ -556,8 +556,8 @@ lists such a file with every component it needs, like `(tools + vendor2)`.
   whose files all travel in other downloads can't have `download` itself.
 - A [Windows Installer package](#windows-installer-packages-msi) can't express
   this, so `bach build --msi` refuses it.
-- It needs a Bach newer than 0.11.0. An [online installer](#online-and-offline-installers)
-  that an older Bach built doesn't know the rule and goes by one component of
+- It needs a Bach Installer newer than 0.11.0. An [online installer](#online-and-offline-installers)
+  that an older Bach Installer built doesn't know the rule and goes by one component of
   each file, so publish the newly built one together with the release that first
   uses `"all"`.
 
@@ -683,7 +683,7 @@ kind = "windows"             # this Windows build number or newer
 build = 19041                # 10240 Windows 10, 17763 1809, 19041 2004, 22000 Windows 11
 ```
 
-Bach supports Windows 10 version 1809 (build 17763) and newer, and Windows 11.
+Bach Installer supports Windows 10 version 1809 (build 17763) and newer, and Windows 11.
 They are tested on Windows 11, Windows on ARM and Windows Server 2022; Windows
 10 itself is not in the automated tests (GitHub has no Windows 10 image). A
 `windows` requirement with a `build` below 17763 makes `bach check` and
@@ -791,7 +791,7 @@ Use single quotes for the key, so the backslashes stay as they are. An
 update writes the values again and removes the ones the new version no longer
 lists. Removing the app deletes a value only while it still holds what setup
 wrote, so a setting the user or the app changed since stays, and keys that end
-up empty go too. Keys that belong to Windows, other programs or Bach are
+up empty go too. Keys that belong to Windows, other programs or Bach Installer are
 refused: `Software\Classes`, `Software\Policies`, `Software\Bach`, and every
 key of the vendors `Microsoft`, `Google`, `Mozilla`, `Mozillaplugins`,
 `Chromium`, `RegisteredApplications`, `Clients` and `ODBC` (they hold Office
@@ -954,7 +954,7 @@ direction = "in"                     # in (default) or out
 | `protocol` | `any` | `any`, `tcp` or `udp`. Rules with `ports` need `tcp` or `udp`. |
 | `networks` | every network | `domain`, `private`, `public`, or a list of them. |
 
-Every rule allows traffic; Bach doesn't write blocking rules. Setup adds the
+Every rule allows traffic; Bach Installer doesn't write blocking rules. Setup adds the
 rule after the files are in place, deletes an older rule of the same name first
 (so an update never leaves two), and deletes it when the app is removed. The
 delete is narrowed by the rule's program, direction, protocol and ports, so a
@@ -962,9 +962,9 @@ rule of the same name that another program made stays.
 
 ## [[migrate]]
 
-Moving an app from Inno Setup, NSIS or an MSI to Bach would leave it on every
+Moving an app from Inno Setup, NSIS or an MSI to Bach Installer would leave it on every
 upgraded computer twice: once from the old install, once from the new one.
-`[[migrate]]` names the old install, and a **first** install with Bach removes
+`[[migrate]]` names the old install, and a **first** install with Bach Installer removes
 it before it places any file, using the uninstall command Windows already holds
 for it under Settings › Apps.
 
@@ -1009,7 +1009,7 @@ What setup does and doesn't do:
   at the folders the old app used so the new version finds them.
 - It runs on a first install only, not on updates. If the old install and the
   new one would use the same folder, the old one is removed first, so nothing it
-  deletes can be a file Bach just installed.
+  deletes can be a file Bach Installer just installed.
 
 ## [[shortcuts]]
 
@@ -1105,7 +1105,7 @@ BACH_ACCESS_KEY=K7QF-3MWD-9XPA-H2TY-6NBC bach build             # bash, zsh
 ```
 
 `bach key > key.txt` also works. Windows PowerShell writes such a file as
-UTF-16 and Bach reads that, a byte order mark and plain UTF-8 alike.
+UTF-16 and Bach Installer reads that, a byte order mark and plain UTF-8 alike.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -1226,7 +1226,7 @@ a text is given in only one, `bach check` points it out.
 | `error_unsafe_folder` | A machine-wide app's install folder that ordinary users can change. |
 | `overwrite_title`, `overwrite_subtitle` (`{files}`) | A first install into a folder that already holds files the install would replace: the window names up to five of them (and how many more) before it installs. |
 | `close_app`, `error_close_app` | "Close and continue", and what it says when the app won't close. |
-| `support_save`, `support_saved`, `support_failed` | The failed page's button "Save support info", what it says once the file is on the desktop, and when it couldn't be saved. The button writes `<app id>-support.txt` to the desktop: the app's name, version and id, Bach's version, the Windows build, the processor type, whether setup is elevated, the install folder, the free space, the failure's sentence and setup's log, with the user's name and profile folder replaced and no key and no app files. Nothing is sent. |
+| `support_save`, `support_saved`, `support_failed` | The failed page's button "Save support info", what it says once the file is on the desktop, and when it couldn't be saved. The button writes `<app id>-support.txt` to the desktop: the app's name, version and id, Bach Installer's version, the Windows build, the processor type, whether setup is elevated, the install folder, the free space, the failure's sentence and setup's log, with the user's name and profile folder replaced and no key and no app files. Nothing is sent. |
 | `requirement_title`, `requirement_subtitle`, `requirement_button` (all `{requirement}`), `requirement_skip` | The page for a missing requirement, and its "Continue anyway" button. |
 | `step_downloading`, `error_download` (`{error}`) | Updating from the app. |
 | `step_finding`, `step_fetching`, `error_fetch` (`{error}`) | The online installer's labels, and what it says when it can't download. |
@@ -1368,9 +1368,9 @@ Wrote dist/Hello-Setup-1.4.0-arm64.exe (10.8 MB)
 | `exclude` | `files.exclude` for this folder. The main `files.exclude` applies when left out. |
 | `runtime` | The ARM64 `bach-setup.exe`, relative to `bach.toml`. Left out, `--runtime-arm64 FILE` (or `BACH_RUNTIME_ARM64`) names it. |
 
-- **The ARM64 runtime** comes from the ARM64 release: every Bach release has a
+- **The ARM64 runtime** comes from the ARM64 release: every Bach Installer release has a
   `bach-<version>-windows-arm64.zip` with an ARM64 `bach.exe` and
-  `bach-setup.exe`. It ends up inside the ARM64 setup file, so Bach checks
+  `bach-setup.exe`. It ends up inside the ARM64 setup file, so Bach Installer checks
   that the file is an ARM64 program and refuses an x64 one. Without it the
   build stops and says so; `--x64-only` builds only the x64 file.
 - **Same app, same version.** Both setup files carry the same `app.id` and
@@ -1519,7 +1519,7 @@ arguments = 'sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a'
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `program` | `signtool` | The signing program, started without a shell. `signtool` is part of the Windows SDK and is rarely on `PATH`: when it isn't, Bach uses the newest one in `C:\Program Files (x86)\Windows Kits\10\bin`. Give a full path to use another. |
+| `program` | `signtool` | The signing program, started without a shell. `signtool` is part of the Windows SDK and is rarely on `PATH`: when it isn't, Bach Installer uses the newest one in `C:\Program Files (x86)\Windows Kits\10\bin`. Give a full path to use another. |
 | `arguments` | required | Its arguments, split like a command line. For `signtool` they start with the word `sign`. The setup file is added last; write `{file}` to put it elsewhere. `{env:NAME}` is replaced by an environment variable, so secrets stay out of `bach.toml` (the build fails when it isn't set). |
 
 Signing runs only when you ask: `bach build --sign` (or `BACH_SIGN=1` in CI)
@@ -1635,7 +1635,7 @@ the exit code. `--help` always works, whatever else is on the line.
 | --- | --- |
 | `--silent` (also `/S`, `/quiet`, `/qn`, `/qb`, `/VERYSILENT`) | No window. Exit code 0 when done, 1 when it failed (the reason is printed in a terminal), 2 for a command-line mistake. The Inno Setup and Windows Installer spellings are accepted so a deployment script that already uses them keeps working. |
 | `--dir PATH` (also `/DIR=PATH`, `/D=PATH`) | Install here instead of the default folder (a first install, when `change_folder` allows it). `/D=` is NSIS's: like NSIS, it takes the rest of the command line, so an unquoted path with spaces works when `/D=` comes last. |
-| `/NORESTART`, `/SP-`, `/SUPPRESSMSGBOXES`, `/NOCANCEL`, `/NCRC`, `/CLOSEAPPLICATIONS`, `/NOCLOSEAPPLICATIONS`, `/RESTARTAPPLICATIONS`, `/NORESTARTAPPLICATIONS` | Inno Setup and NSIS switches that ask for what a Bach setup does anyway (it never restarts Windows and shows no message boxes in a silent run). They are accepted and ignored, so a script that passes them doesn't fail with exit code 2. |
+| `/NORESTART`, `/SP-`, `/SUPPRESSMSGBOXES`, `/NOCANCEL`, `/NCRC`, `/CLOSEAPPLICATIONS`, `/NOCLOSEAPPLICATIONS`, `/RESTARTAPPLICATIONS`, `/NORESTARTAPPLICATIONS` | Inno Setup and NSIS switches that ask for what a Bach Installer setup does anyway (it never restarts Windows and shows no message boxes in a silent run). They are accepted and ignored, so a script that passes them doesn't fail with exit code 2. |
 | `--with a,b` / `--without a,b` | Tick or untick options: `desktop-shortcut`, `start-menu`, `autostart`, `path`, `auto-update`, and component ids. Only options the install page would offer. |
 | `--lang CODE` | The language for messages, instead of Windows' own. |
 | `--theme light\|dark\|system` | The window's theme for this run, instead of `installer.theme`. |
@@ -1707,7 +1707,7 @@ update or removal. Every run logs to `%TEMP%\<app id>-update.log`.
 `bach init` starts the file with
 
 ```toml
-#:schema https://raw.githubusercontent.com/usebach/bach/main/schema/bach.schema.json
+#:schema https://raw.githubusercontent.com/usebach/bach-installer/main/schema/bach.schema.json
 ```
 
 so editors with TOML support (VS Code with Even Better TOML, Zed, JetBrains
@@ -1745,7 +1745,7 @@ part of it. The manifests say `Scope: machine` for a setup file with
 architecture of its runtime: `x64`, or `arm64` for a setup file built with the
 ARM64 runtime.
 
-Bach's own release workflow opens the winget pull request for each normal
+Bach Installer's own release workflow opens the winget pull request for each normal
 release with `wingetcreate` (never for a pre-release, a draft or a dry run),
 when the repository has the secret `WINGET_TOKEN` and the variable
 `WINGET_PACKAGE`. The package has to be listed already: the first pull request
@@ -1771,7 +1771,7 @@ link or a name like `MIT`; `--out` picks the folder.
 Companies hand out apps with Microsoft Intune, Configuration Manager or a
 similar tool. For a setup file that isn't an MSI they ask for three things:
 a silent install command, an uninstall command and a rule that says the app
-is installed. Bach has all three already; one command writes them down:
+is installed. Bach Installer has all three already; one command writes them down:
 
 ```bash
 bach intune dist/Hello-Setup-1.4.0.exe
@@ -1792,7 +1792,7 @@ picks another folder):
 | File | What it holds |
 | --- | --- |
 | `intune.md` | The settings sheet: how to wrap the setup file with Microsoft's Win32 Content Prep Tool (`IntuneWinAppUtil.exe`), the program settings, the requirements and the detection rule, ready to copy into Intune. |
-| `detect.ps1` | The same detection as a custom detection script. It reads the app's Settings › Apps entry and says "installed" when this version **or a newer one** is there, so Intune never installs an old version over one Bach has updated. Leave "Run script as 32-bit process" off. |
+| `detect.ps1` | The same detection as a custom detection script. It reads the app's Settings › Apps entry and says "installed" when this version **or a newer one** is there, so Intune never installs an old version over one Bach Installer has updated. Leave "Run script as 32-bit process" off. |
 
 Things to know:
 
@@ -1831,7 +1831,7 @@ Wrote dist/Hello-Setup-1.4.0.msi (9.8 MB), the Windows Installer package
   not in the MSI: adding to PATH
 ```
 
-The package is made by Bach (a real MSI database with its files in an embedded
+The package is made by Bach Installer (a real MSI database with its files in an embedded
 cabinet), not a wrapper that runs the setup file. Windows Installer installs,
 repairs, upgrades and removes it itself, so deployment tools can track it.
 
@@ -1901,7 +1901,7 @@ Limits and rules:
 - It isn't signed by `--sign` (Windows Installer's own signing is a different
   mechanism): sign it with `signtool sign` like any other file.
 - `--json` adds `msi` (the file) and `msi_skipped` (what it left out).
-- A real run: Bach's own tests install a package like this per user with every item
+- A real run: Bach Installer's own tests install a package like this per user with every item
   above, check the registry, `PATH`, the variables, the shortcuts and the run steps, upgrade it,
   see an older package refused and remove it again with `msiexec`, checking that all of it goes.
   Another test opens the package with Windows' full interface and checks that the window's
@@ -1930,7 +1930,7 @@ size and SHA-256 in the manifest. It also looks for files the manifest lacks
 or the archive doesn't hold. A damaged file stops with exit code 1 and a
 sentence that names the first few files that are wrong.
 
-- `signature` says whether the file carries a signature. Bach reads only the
+- `signature` says whether the file carries a signature. Bach Installer reads only the
   entry in the file's header; Windows decides whether it is valid, and
   `signtool verify /pa` checks it (see [signing](signing.md)).
 - The runtime part of the file (the program that shows the window) is covered
@@ -1983,7 +1983,7 @@ Made the app bigger:
   components and `[[migrate]]` entries.
 - **Made the app bigger** ranks the files by how many bytes they added to the
   installed app, biggest first (`--top N`, default 5). The archive is one
-  compressed stream, so Bach can't say how much each file added to the
+  compressed stream, so Bach Installer can't say how much each file added to the
   *setup file*; the installed size and the packed total are shown instead.
 - Both files must be for the same app id. An installed `uninstall.exe` works
   as either side too.
@@ -2064,7 +2064,7 @@ The report ends with a summary line and exit code `0` when every check passed,
   "machine"`, or an elevated run step) shows Windows' prompt inside the sandbox
   window; accept it there. A setup file with **[`[access]`](#access)** asks
   for a key a silent test can't type: test a build without it.
-- The files in the sandbox's folders are the setup file, a script that Bach
+- The files in the sandbox's folders are the setup file, a script that Bach Installer
   writes (`run.ps1`), and `params.json` with what the script checks against.
   The script reads that file as data and never builds commands from what a
   setup file says. The setup file's folder is mapped read-only.
@@ -2104,7 +2104,7 @@ bach import installer.nsi --dry-run
 
 `bach import` reads an Inno Setup script (`.iss`) or an NSIS script (`.nsi`)
 and writes a first `bach.toml` next to it. Both are programming languages, so it
-reads only what has a setting in Bach and says what it left out:
+reads only what has a setting in Bach Installer and says what it left out:
 
 - the app's name, version, publisher, website and icon, the license file and
   the install folder's name;

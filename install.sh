@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs the bach command on macOS or Linux, no Rust needed:
 #
-#   curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/usebach/bach-installer/main/install.sh | sh
 #
 # Downloads the latest release for this system (or $BACH_VERSION: "0.2.0"
 # for exactly that one, "0.2" or "0" for the newest of that line, "latest"
@@ -20,10 +20,10 @@
 # if that folder isn't yours to write to. If sudo isn't there or is refused,
 # bach is installed for you alone instead.
 #
-#   curl -fsSL https://raw.githubusercontent.com/usebach/bach/main/install.sh | sh -s -- --system
+#   curl -fsSL https://raw.githubusercontent.com/usebach/bach-installer/main/install.sh | sh -s -- --system
 set -eu
 
-repo="usebach/bach"
+repo="usebach/bach-installer"
 scope="${BACH_SCOPE:-user}"
 for arg in "$@"; do
   case "$arg" in
@@ -170,7 +170,7 @@ if [ -e "$dir/bach" ] && [ ! -e "$mark" ]; then
   exit 1
 fi
 $sudo install -m 755 "$work/$name/bach" "$dir/bach"
-echo "Installed by https://github.com/usebach/bach/blob/main/install.sh" > "$work/mark"
+echo "Installed by https://github.com/usebach/bach-installer/blob/main/install.sh" > "$work/mark"
 $sudo install -m 644 "$work/mark" "$mark"
 echo "Installed $("$dir/bach" --version) to $dir/bach"
 case ":$PATH:" in
